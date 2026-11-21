@@ -32,6 +32,10 @@ template<class T> struct Buf {
 };
 extern "C" cnrtRet_t phase82_bf16(cnrtQueue_t,const uint16_t*,const uint16_t*,uint16_t*,float*,uint16_t*,float*,float*,int,int,float);
 extern "C" cnrtRet_t phase82_fp16(cnrtQueue_t,const uint16_t*,const uint16_t*,uint16_t*,float*,uint16_t*,float*,float*,int,int,float);
+#ifdef PHASE82_NATIVE_CHECK
+extern "C" cnrtRet_t phase82_native_bf16(cnrtQueue_t,const uint16_t*,const uint16_t*,uint16_t*,float*,uint16_t*,int,int,float);
+extern "C" cnrtRet_t phase82_native_fp16(cnrtQueue_t,const uint16_t*,const uint16_t*,uint16_t*,float*,uint16_t*,int,int,float);
+#endif
 int main(int argc,char**argv) try {
     if(argc!=8 || std::string(argv[1])!="--authorized")return 2;
     int dev=-1;
@@ -44,6 +48,13 @@ int main(int argc,char**argv) try {
     Buf<float> norm(n),squares(n),stats(size_t(m)*4);
     x.upload(input);g.upload(gamma);
     cnrtQueue_t q=nullptr; check(cnrtQueueCreate(&q));
+#ifdef PHASE82_NATIVE_CHECK
+    auto native=dtype=="bf16"?phase82_native_bf16:phase82_native_fp16;
+    check(native(q,x.p,g.p,y.p,norm.p,rounded.p,m,w,1e-6f));
+    check(cnrtQueueSync(q));check(cnrtQueueDestroy(q));
+    write(prefix+".native.u16",y.fetch(n));
+    return 0;
+#endif
     auto probe=dtype=="bf16"?phase82_bf16:phase82_fp16;
     auto accepted=dtype=="bf16"?bang_rmsnorm_bf16:bang_rmsnorm_fp16;
     check(probe(q,x.p,g.p,y.p,norm.p,rounded.p,squares.p,stats.p,m,w,1e-6f));

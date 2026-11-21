@@ -18,7 +18,7 @@ cases = {
     ("fp16", "1"): ("post",),
     ("bf16", "32"): ("post",),
 }
-report = csv.writer(sys.stdout)
+report = csv.writer(sys.stdout,lineterminator="\n")
 report.writerow(("dtype","prefill","request","position","norm","stage","elements","mismatches",
                  "nonfinite","max_abs","max_rel","first_mismatch","max_ulp","bit_differences",
                  "first_bit_difference","expected_bits","device_bits","first_ulp"))
@@ -62,6 +62,9 @@ for line in (candidate / "trace_manifest").read_text().splitlines():
                      load(".out.u16","<i2").view(low).float(),low),
                     ("final", (rounded*gamma).float(), load(".out.u16","<i2").view(low).float(),low),
                 ]
+                if Path(str(p)+".native.u16").is_file():
+                    parts.append(("experimental_device_only_final", (rounded*gamma).float(),
+                                  load(".native.u16","<i2").view(low).float(),low))
                 for label, a, b, logical in parts:
                     values = list(compare(a,b,low))
                     if logical is None:

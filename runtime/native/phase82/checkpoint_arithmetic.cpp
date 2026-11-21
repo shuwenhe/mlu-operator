@@ -10,6 +10,18 @@
 extern "C" cnrtRet_t phase82_finish_fp16(cnrtQueue_t,const uint16_t*,const uint16_t*,uint16_t*,float*,uint16_t*,const float*,int,int);
 extern "C" cnrtRet_t phase82_finish_bf16(cnrtQueue_t,const uint16_t*,const uint16_t*,uint16_t*,float*,uint16_t*,const float*,int,int);
 
+#ifdef PHASE82_DEVICE_ONLY
+extern "C" cnrtRet_t phase82_native_fp16(cnrtQueue_t,const uint16_t*,const uint16_t*,uint16_t*,float*,uint16_t*,int,int,float);
+extern "C" cnrtRet_t phase82_native_bf16(cnrtQueue_t,const uint16_t*,const uint16_t*,uint16_t*,float*,uint16_t*,int,int,float);
+extern "C" cnrtRet_t __wrap_bang_rmsnorm_fp16(cnrtQueue_t q,const uint16_t*x,const uint16_t*g,
+    uint16_t*y,float*n,uint16_t*r,int rows,int width,float eps) {
+    return phase82_native_fp16(q,x,g,y,n,r,rows,width,eps);
+}
+extern "C" cnrtRet_t __wrap_bang_rmsnorm_bf16(cnrtQueue_t q,const uint16_t*x,const uint16_t*g,
+    uint16_t*y,float*n,uint16_t*r,int rows,int width,float eps) {
+    return phase82_native_bf16(q,x,g,y,n,r,rows,width,eps);
+}
+#else
 namespace {
 void check(cnrtRet_t status) {
     if (status != cnrtSuccess) throw std::runtime_error("Phase 8.2 CNRT " + std::to_string(status));
@@ -48,6 +60,7 @@ extern "C" cnrtRet_t __wrap_bang_rmsnorm_##TYPE(cnrtQueue_t q,const uint16_t*x,c
 }
 WRAPPER(fp16,false)
 WRAPPER(bf16,true)
+#endif
 
 std::vector<float> checkpoint_attention(const std::vector<float>& q,const std::vector<float>& kv,
         const std::vector<uint16_t>& rotated,int pos,int m,bool bf16) {

@@ -27,12 +27,22 @@ assert anchor in fixture
 fixture=fixture.replace(anchor,"const auto out_attention=checkpoint_attention(actual_q,actual_cache,actual_rot,r.length,batch, !fp16);")
 (out/"experiment.cpp").write_text(fixture)
 PY
+norm_def=()
+if [[ ${3:-} == device_only || ${3:-} == exact_rsqrt ]]; then
+  opts=()
+  if [[ ${3:-} == exact_rsqrt ]]; then opts=(--exact-rsqrt); fi
+  python3 runtime/native/phase82/native_norm.py "$dir" "${opts[@]}"
+  norm_def=(-DPHASE82_DEVICE_ONLY)
+  norm_source=native_norm
+else
+  norm_source=finish
+fi
 for dtype in fp16 bf16; do
  defs=()
  if [[ $dtype == bf16 ]]; then defs=(-DRMSNORM_BF16); fi
- "$sdk/bin/cncc" --bang-mlu-arch=mtp_592 -std=c++11 -O2 -ffp-contract=off -Ioperators/rmsnorm/native "${defs[@]}" -c "$dir/finish.mlu" -o "$dir/finish-$dtype.o"
+ "$sdk/bin/cncc" --bang-mlu-arch=mtp_592 -std=c++11 -O2 -ffp-contract=off -Ioperators/rmsnorm/native -Iruntime/native/phase82 "${defs[@]}" -c "$dir/$norm_source.mlu" -o "$dir/finish-$dtype.o"
 done
-g++ -no-pie -O2 -std=c++17 -ffp-contract=off -I"$sdk/include" -Ioperators/gemm/native/prepacked -Iruntime/native \
+g++ -no-pie -O2 -std=c++17 -ffp-contract=off "${norm_def[@]}" -I"$sdk/include" -Ioperators/gemm/native/prepacked -Iruntime/native \
  -Ioperators/rmsnorm/native -Icommon/reference -isystem "$torch/include" \
  runtime/native/{runtime,workspace,dispatch}.cpp "$dir/experiment.cpp" runtime/native/phase8/candidate_wrap.cpp \
  runtime/native/phase82/checkpoint_arithmetic.cpp /results/prepacked-final-build/{fp16,bf16,packed}.o \

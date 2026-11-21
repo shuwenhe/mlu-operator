@@ -17,7 +17,7 @@ pointer = np.ctypeslib.ndpointer(dtype=np.float32, flags="C_CONTIGUOUS")
 lib.serial_attention.argtypes = [pointer]*3+[ctypes.c_int]*3+[pointer]*9
 lib.serial_attention.restype = None
 torch.set_num_threads(2)
-out = csv.writer(sys.stdout)
+out = csv.writer(sys.stdout,lineterminator="\n")
 out.writerow(("request","position","m","n","stage","elements","mismatches","nonfinite",
               "max_abs","max_rel","first_mismatch","max_ulp","bit_differences",
               "first_bit_difference","expected_bits","fixture_bits","first_ulp"))

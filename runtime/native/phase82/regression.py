@@ -16,7 +16,7 @@ dtype, length = sys.argv[5], int(sys.argv[6])
 low=torch.bfloat16 if dtype=="bf16" else torch.float16
 torch.set_num_threads(2)
 with (output/"layer.csv").open("w") as f:
-    out=csv.writer(f)
+    out=csv.writer(f,lineterminator="\n")
     out.writerow(("run_dtype","prefill","comparison","request","position","stage","shape",
                   "element_strides","logical_dtype","elements","max_abs","max_rel","mean_abs",
                   "mismatches","nonfinite","bit_differences","first_mismatch","expected_bits",
@@ -53,7 +53,7 @@ with (output/"layer.csv").open("w") as f:
                               good.mean() if len(good) else 0,len(failed),int((~finite).sum()),len(diff),
                               *first(failed),*first(diff)))
 with (output/"projections.csv").open("w") as f:
-    out=csv.writer(f)
+    out=csv.writer(f,lineterminator="\n")
     out.writerow(("dtype","prefill","request","position","projection","elements","mismatches",
                   "nonfinite","max_abs","max_rel","first_mismatch","max_ulp","bit_differences",
                   "first_bit_difference","torch_bits","device_bits","first_ulp"))
