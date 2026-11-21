@@ -15,6 +15,12 @@ public:
     void rope(size_t slot,Backend,View qk,View cosine,View sine,View positions,View output,int sequence);
     void kv_chain(size_t slot,View input,Registry::Lease kvaa,View gamma,
                   Registry::Lease kvb,View wide,View latent,View norm,View output);
+    // Phase 9: Native MLU Attention
+    void attention_qk(size_t slot,View q,View k,View positions,int cache_base,
+                      float scale,View qk_out,View scaled_out,View masked_out);
+    void attention_softmax(size_t slot,View masked,int cache_len,
+                           View maxes_out,View denom_out,View probs_out,View probs_low_out);
+    void attention_av(size_t slot,View probs,View v,View av_out,View out);
 private:
     void view(View) const;
     void active(size_t);

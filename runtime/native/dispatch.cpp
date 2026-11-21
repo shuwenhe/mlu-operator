@@ -185,4 +185,73 @@ void Dispatch::kv_chain(size_t id,View a,Registry::Lease wa,View gamma,Registry:
     rmsnorm(id,Backend::Native,latent,gamma,norm,1e-6f);
     gemm(id,Backend::Native,norm,std::move(wb),{},output);
 }
+
+/*
+ * Phase 9: Native MLU Attention Kernels
+ *
+ * Query-Key multiplication with scale and causal masking.
+ * Input: q [rows, seq, 192], k [rows, cache_len, 192] (BF16/FP16)
+ * Output: qk [rows, seq, cache_len] FP32 raw
+ *         scaled [rows, seq, cache_len] BF16/FP16 scaled
+ *         masked [rows, seq, cache_len] FP32 with -INF at masked positions
+ */
+void Dispatch::attention_qk(size_t id,View q,View k,View positions,int cache_base,
+                            float scale,View qk_out,View scaled_out,View masked_out) {
+    active(id);view(q);view(k);view(positions);view(qk_out);view(scaled_out);view(masked_out);
+    distinct({q,k,positions,qk_out,scaled_out,masked_out});
+    require(q.cols==192&&k.cols==192&&q.rows==k.rows&&q.type==k.type&&low(q.type)&&
+            positions.rows==1&&positions.type==Type::u32&&
+            qk_out.rows==q.rows&&qk_out.cols==k.rows&&qk_out.type==Type::fp32&&
+            scaled_out.rows==qk_out.rows&&scaled_out.cols==qk_out.cols&&scaled_out.type==q.type&&
+            masked_out.rows==qk_out.rows&&masked_out.cols==qk_out.cols&&masked_out.type==Type::fp32,
+            "invalid attention QK view");
+    // Phase 9: Placeholder for BANG C kernel call
+    // TODO: Invoke phase9_attention_qk_bf16/fp16 kernel
+    // For now, this is a noop; actual implementation requires BANG C kernel
+    require(false,"attention_qk: native MLU kernel not yet implemented");
+}
+
+/*
+ * Row-wise softmax with FP32 precision.
+ * Input: masked [rows, seq, cache_len] FP32 with -INF at masked positions
+ * Output: maxes [rows, seq] FP32
+ *         denom [rows, seq] FP32
+ *         probs [rows, seq, cache_len] FP32 normalized
+ *         probs_low [rows, seq, cache_len] BF16/FP16 converted
+ */
+void Dispatch::attention_softmax(size_t id,View masked,int cache_len,
+                                 View maxes_out,View denom_out,View probs_out,View probs_low_out) {
+    active(id);view(masked);view(maxes_out);view(denom_out);view(probs_out);view(probs_low_out);
+    distinct({masked,maxes_out,denom_out,probs_out,probs_low_out});
+    require(masked.type==Type::fp32&&
+            maxes_out.rows==masked.rows&&maxes_out.cols==masked.rows&&maxes_out.type==Type::fp32&&
+            denom_out.rows==masked.rows&&denom_out.cols==masked.rows&&denom_out.type==Type::fp32&&
+            probs_out.rows==masked.rows&&probs_out.cols==masked.cols&&probs_out.type==Type::fp32&&
+            probs_low_out.rows==masked.rows&&probs_low_out.cols==masked.cols&&low(probs_low_out.type),
+            "invalid attention softmax view");
+    // Phase 9: Placeholder for BANG C kernel call
+    // TODO: Invoke phase9_attention_softmax_bf16/fp16 kernel
+    require(false,"attention_softmax: native MLU kernel not yet implemented");
+}
+
+/*
+ * Attention-weighted value summation.
+ * Input: probs [rows, seq, cache_len] BF16/FP16
+ *        v [rows, cache_len, 128] BF16/FP16
+ * Output: av [rows, seq, 128] FP32
+ *         out [rows, seq, 128] BF16/FP16
+ */
+void Dispatch::attention_av(size_t id,View probs,View v,View av_out,View out) {
+    active(id);view(probs);view(v);view(av_out);view(out);
+    distinct({probs,v,av_out,out});
+    require(low(probs.type)&&low(v.type)&&probs.type==v.type&&
+            v.cols==128&&probs.rows==v.rows&&
+            av_out.rows==probs.rows&&av_out.cols==128&&av_out.type==Type::fp32&&
+            out.rows==av_out.rows&&out.cols==av_out.cols&&out.type==probs.type,
+            "invalid attention AV view");
+    // Phase 9: Placeholder for BANG C kernel call
+    // TODO: Invoke phase9_attention_av_bf16/fp16 kernel
+    require(false,"attention_av: native MLU kernel not yet implemented");
+}
+}
 }
