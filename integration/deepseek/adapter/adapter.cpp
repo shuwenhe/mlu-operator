@@ -48,7 +48,7 @@ float decode(uint16_t word, Type type) {
 
 uint16_t encode(float value, Type type) {
     if (type == Type::fp16) {
-        const _Float16 half = value;
+        const _Float16 half = static_cast<_Float16>(value);
         uint16_t word;
         std::memcpy(&word, &half, sizeof(word));
         return word;

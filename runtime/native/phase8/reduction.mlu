@@ -1,0 +1,195 @@
+// Diagnostic dot products over captured checkpoint operands; no production dispatch.
+#include <bang.h>
+#include <cnrt.h>
+#include <chrono>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <fstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+constexpr int max_k = 10944;
+constexpr int rounded_lanes = 128;
+constexpr int modes = 4 + 4 * 2 * 4 + 1;
+
+__mlu_func__ float sequential(const float *a, const float *b, int first, int last,
+                             bool reverse, bool fused) {
+    float sum = 0;
+    for (int j = 0; j < last - first; ++j) {
+        const int k = reverse ? last - 1 - j : first + j;
+#ifdef PHASE8_TRY_SCALAR_FMA
+        sum = fused ? __builtin_fmaf(a[k], b[k], sum) : sum + a[k] * b[k];
+#else
+        (void)fused;
+        sum = sum + a[k] * b[k];
+#endif
+    }
+    return sum;
+}
+
+__mlu_func__ float pairwise(float *values, int count) {
+    while (count > 1) {
+        const int tail = count % 2;
+        const int pairs = count / 2;
+        for (int i = 0; i < pairs; ++i) values[i] = values[2 * i] + values[2 * i + 1];
+        if (tail) values[pairs] = values[count - 1];
+        count = pairs + tail;
+    }
+    return values[0];
+}
+
+// Reproduce the sampled AVX2 interior for checkpoint K divisible by 64.
+__mlu_func__ float avx2_order(const float *a, const float *b, int count) {
+    __nram__ float accum[64];
+    for (int i = 0; i < 64; ++i) accum[i] = 0;
+    for (int base = 0; base < count; base += 64)
+        for (int lane = 0; lane < 64; ++lane)
+            accum[lane] += a[base + lane] * b[base + lane];
+    for (int lane = 0; lane < 8; ++lane) {
+        const float even = (accum[lane] + accum[32 + lane]) +
+                           (accum[16 + lane] + accum[48 + lane]);
+        const float odd = (accum[24 + lane] + accum[56 + lane]) +
+                          (accum[8 + lane] + accum[40 + lane]);
+        accum[lane] = even + odd;
+    }
+    const float a02 = (accum[0] + accum[4]) + (accum[2] + accum[6]);
+    const float a13 = (accum[1] + accum[5]) + (accum[3] + accum[7]);
+    return a02 + a13;
+}
+
+__mlu_global__ void reduce(const float *a, const float *b, const int *lengths,
+                           float *fp32, int samples) {
+    __nram__ float x[max_k], y[max_k], partials[(max_k + 15) / 16], products[128];
+    for (int sample = taskId; sample < samples; sample += taskDim) {
+        const int count = lengths[sample];
+        const size_t offset = size_t(sample) * max_k;
+        __memcpy(x, a + offset, count * sizeof(float), GDRAM2NRAM);
+        __memcpy(y, b + offset, count * sizeof(float), GDRAM2NRAM);
+        for (int mode = 0; mode < modes; ++mode) {
+            float result = 0;
+            if (mode == modes - 1) {
+                result = avx2_order(x, y, count);
+            } else if (mode < 4) {
+                result = sequential(x, y, 0, count, mode & 2, mode & 1);
+            } else {
+                const int option = mode - 4;
+                const int chunk = 16 << (option / 8);
+                const bool reverse = option & 4;
+                const int policy = option % 4;
+                const int blocks = (count + chunk - 1) / chunk;
+                for (int block = 0; block < blocks; ++block) {
+                    const int index = reverse ? blocks - 1 - block : block;
+                    const int begin = index * chunk;
+                    const int end = begin + chunk < count ? begin + chunk : count;
+                    if (policy == 3) {
+                        for (int k = 0; k < end - begin; ++k)
+                            products[k] = x[begin + k] * y[begin + k];
+                        partials[block] = pairwise(products, end - begin);
+                    } else {
+                        partials[block] = sequential(x, y, begin, end, reverse, policy == 1);
+                    }
+                }
+                if (policy >= 2) result = pairwise(partials, blocks);
+                else for (int i = 0; i < blocks; ++i) result += partials[i];
+            }
+            fp32[sample * modes + mode] = result;
+        }
+    }
+}
+
+__mlu_global__ void convert(const float *fp32, uint16_t *half_bits, uint16_t *bf_bits, int elements) {
+    __nram__ float values[rounded_lanes];
+    __nram__ half halves[rounded_lanes];
+    __nram__ bfloat16_t bfloats[rounded_lanes];
+    for (int block = taskId; block * rounded_lanes < elements; block += taskDim) {
+        const int start = block * rounded_lanes;
+        __memcpy(values, fp32 + start, sizeof(values), GDRAM2NRAM);
+        __bang_float2half_rn(halves, values, rounded_lanes);
+        __bang_float2bfloat16_rn(bfloats, values, rounded_lanes);
+        __memcpy(half_bits + start, halves, sizeof(halves), NRAM2GDRAM);
+        __memcpy(bf_bits + start, bfloats, sizeof(bfloats), NRAM2GDRAM);
+    }
+}
+
+static void check(cnrtRet_t status, const char *operation) {
+    if (status != cnrtSuccess)
+        throw std::runtime_error(std::string(operation) + " CNRT " + std::to_string(status));
+}
+template<class T> struct Device {
+    T *pointer = nullptr;
+    explicit Device(size_t size) {
+        check(cnrtMalloc(reinterpret_cast<void **>(&pointer), size * sizeof(T)), "allocate");
+    }
+    Device(const Device &) = delete;
+    ~Device() { if (pointer) cnrtFree(pointer); }
+    void close() { check(cnrtFree(pointer), "free"); pointer = nullptr; }
+};
+struct Queue {
+    cnrtQueue_t handle = nullptr;
+    Queue() { check(cnrtQueueCreate(&handle), "create queue"); }
+    ~Queue() { if (handle) cnrtQueueDestroy(handle); }
+    void close() { check(cnrtQueueDestroy(handle), "destroy queue"); handle = nullptr; }
+};
+template<class T> void copy(T *dst, T *src, size_t size, cnrtMemTransDir_t direction) {
+    check(cnrtMemcpy(dst, src, size * sizeof(T), direction), "transfer");
+}
+
+int main(int argc, char **argv) try {
+    if (argc != 4 || std::string(argv[1]) != "--authorized") return 2;
+    unsigned devices = 0;
+    int ordinal = -1;
+    check(cnrtGetDeviceCount(&devices), "enumerate");
+    if (devices != 1) throw std::runtime_error("one visible card required");
+    check(cnrtDeviceGetByPCIBusId(&ordinal, argv[2]), "resolve PCI");
+    check(cnrtSetDevice(ordinal), "select device");
+    std::ifstream in(argv[3], std::ios::binary);
+    if (!in) throw std::runtime_error("cannot read operands");
+    std::vector<float> host_a, host_b;
+    std::vector<int> k;
+    for (int count; in.read(reinterpret_cast<char *>(&count), sizeof(count));) {
+        if (count <= 0 || count > max_k || count % 64) throw std::runtime_error("invalid K");
+        k.push_back(count);
+        host_a.resize(k.size() * max_k);
+        host_b.resize(host_a.size());
+        if (!in.read(reinterpret_cast<char *>(host_a.data() + (k.size() - 1) * max_k), count * sizeof(float)) ||
+            !in.read(reinterpret_cast<char *>(host_b.data() + (k.size() - 1) * max_k), count * sizeof(float)))
+            throw std::runtime_error("truncated operands");
+    }
+    if (k.empty() || !in.eof() || in.gcount()) throw std::runtime_error("invalid operands file");
+    const int count = k.size() * modes;
+    const int padded = (count + rounded_lanes - 1) / rounded_lanes * rounded_lanes;
+    Device<float> a(host_a.size()), b(host_b.size()), f(padded);
+    Device<int> lengths(k.size());
+    Device<uint16_t> h(padded), bf(padded);
+    Queue queue;
+    copy(a.pointer, host_a.data(), host_a.size(), cnrtMemcpyHostToDev);
+    copy(b.pointer, host_b.data(), host_b.size(), cnrtMemcpyHostToDev);
+    copy(lengths.pointer, k.data(), k.size(), cnrtMemcpyHostToDev);
+    std::vector<float> fp32(padded);
+    copy(f.pointer, fp32.data(), padded, cnrtMemcpyHostToDev);
+    const auto started = std::chrono::steady_clock::now();
+    reduce<<<(cnrtDim3_t{32, 1, 1}), cnrtFuncTypeBlock, queue.handle>>>(
+        a.pointer, b.pointer, lengths.pointer, f.pointer, k.size());
+    check(cnrtGetLastError(), "launch reductions");
+    convert<<<(cnrtDim3_t{32, 1, 1}), cnrtFuncTypeBlock, queue.handle>>>(f.pointer, h.pointer, bf.pointer, count);
+    check(cnrtGetLastError(), "launch conversion");
+    check(cnrtQueueSync(queue.handle), "complete experiments");
+    const auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
+    std::vector<uint16_t> halves(padded), bfloats(padded);
+    copy(fp32.data(), f.pointer, padded, cnrtMemcpyDevToHost);
+    copy(halves.data(), h.pointer, padded, cnrtMemcpyDevToHost);
+    copy(bfloats.data(), bf.pointer, padded, cnrtMemcpyDevToHost);
+    std::puts("sample,mode,fp32,fp16_bits,bf16_bits");
+    for (int i = 0; i < count; ++i)
+        std::printf("%d,%d,%.9g,%u,%u\n", i / modes, i % modes, fp32[i], halves[i], bfloats[i]);
+    queue.close();
+    bf.close(); h.close(); lengths.close(); f.close(); b.close(); a.close();
+    std::fprintf(stderr, "device=%s samples=%zu modes=%d launch_sync_s=%.6f cleanup=PASS\n",
+                 argv[2], k.size(), modes, elapsed);
+    return 0;
+} catch (const std::exception &e) {
+    std::fprintf(stderr, "reduction experiment: %s\n", e.what());
+    return 1;
+}

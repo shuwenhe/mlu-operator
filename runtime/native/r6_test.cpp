@@ -321,6 +321,10 @@ int main(int argc,char **argv) try {
                     ws.finish(r.slot);
                     check(cnrtMemcpy(actual.data(),out.data,actual.size()*4,cnrtMemcpyDevToHost),"read decoder projection");
                     passed&=compare(name,i,r.length,ref.data(),actual.data(),ref.size());
+                    if(std::getenv("LAYER0_TRACE_DIR")) {
+                        trace((std::string(name)+"_fp32").c_str(),i,r.length,actual);
+                        trace(("historical_"+std::string(name)+"_fp32").c_str(),i,r.length,ref);
+                    }
                     mem.release(out.data);mem.release(in.data);
                     return std::make_pair(std::move(actual),std::move(ref));
                 };
@@ -332,6 +336,21 @@ int main(int argc,char **argv) try {
                     std::transform(words.begin(),words.end(),values.begin(),decode);
                     return values;
                 }());
+                if(std::getenv("LAYER0_TRACE_DIR")) {
+                    trace("q_fp32",i,r.length,actual_q);
+                    trace("kv_a_fp32",i,r.length,actual_split);
+                    trace("kv_b_fp32",i,r.length,
+                          std::vector<float>(actual_cache.end()-kv.size(),actual_cache.end()));
+                    trace("historical_q_fp32",i,r.length,qr);
+                    trace("historical_kv_a_fp32",i,r.length,compressed);
+                    trace("historical_kv_b_fp32",i,r.length,kv);
+                    std::vector<uint16_t> words(size_t(batch)*latent);
+                    check(cnrtMemcpy(words.data(),r.normalized.data,words.size()*2,cnrtMemcpyDevToHost),
+                          "trace KV-B input");
+                    std::vector<float> values(words.size());
+                    std::transform(words.begin(),words.end(),values.begin(),decode);
+                    trace("kv_norm",i,r.length,values);
+                }
                 trace("q",i,r.length,rounded(actual_q));
                 trace("kv_a",i,r.length,rounded(actual_split));
                 trace("kv_b",i,r.length,rounded(std::vector<float>(actual_cache.end()-kv.size(),actual_cache.end())));
@@ -375,6 +394,14 @@ int main(int argc,char **argv) try {
                         g[j]=decode(encode(activation*decode(encode(u[j]))));
                     }
                 };
+                if(std::getenv("LAYER0_TRACE_DIR")) {
+                    std::vector<float> silu(gate.first.size());
+                    for(size_t j=0;j<silu.size();++j) {
+                        const float x=decode(encode(gate.first[j]));
+                        silu[j]=decode(encode(x/(1.f+std::exp(-x))));
+                    }
+                    trace("silu",i,r.length,silu);
+                }
                 swiglu(gate.first,up.first); swiglu(gate.second,up.second);
                 trace("swiglu",i,r.length,gate.first);
                 auto down=run_linear("down",gate.first,gate.second);

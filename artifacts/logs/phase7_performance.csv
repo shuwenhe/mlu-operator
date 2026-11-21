@@ -1,0 +1,113 @@
+dtype,prefill,metric,value,unit,status,scope
+bf16,1,trace_process_wall,3.253,s,MEASURED,"includes host oracles, traces, transfers and device execution"
+bf16,1,persistent_packed_weights,163053568,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+bf16,1,kv_cache,65536,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+bf16,1,peak_managed,247048,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+bf16,1,remaining_managed,0,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+bf16,1,weight_loading,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,1,weight_packing,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,1,initialization,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,1,prefill_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,1,decode_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,1,kernel_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,1,transfer_inclusive_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,1,peak_physical_memory,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,1,workspace_only_peak,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,7,trace_process_wall,4.518,s,MEASURED,"includes host oracles, traces, transfers and device execution"
+bf16,7,persistent_packed_weights,163053568,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+bf16,7,kv_cache,262144,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+bf16,7,peak_managed,1253152,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+bf16,7,remaining_managed,0,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+bf16,7,weight_loading,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,7,weight_packing,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,7,initialization,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,7,prefill_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,7,decode_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,7,kernel_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,7,transfer_inclusive_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,7,peak_physical_memory,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,7,workspace_only_peak,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,32,trace_process_wall,11.615,s,MEASURED,"includes host oracles, traces, transfers and device execution"
+bf16,32,persistent_packed_weights,163053568,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+bf16,32,kv_cache,1081344,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+bf16,32,peak_managed,5445252,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+bf16,32,remaining_managed,0,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+bf16,32,weight_loading,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,32,weight_packing,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,32,initialization,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,32,prefill_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,32,decode_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,32,kernel_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,32,transfer_inclusive_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,32,peak_physical_memory,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,32,workspace_only_peak,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,128,trace_process_wall,37.677,s,MEASURED,"includes host oracles, traces, transfers and device execution"
+bf16,128,persistent_packed_weights,163053568,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+bf16,128,kv_cache,4227072,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+bf16,128,peak_managed,21542916,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+bf16,128,remaining_managed,0,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+bf16,128,weight_loading,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,128,weight_packing,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,128,initialization,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,128,prefill_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,128,decode_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,128,kernel_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,128,transfer_inclusive_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,128,peak_physical_memory,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+bf16,128,workspace_only_peak,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,1,trace_process_wall,3.629,s,MEASURED,"includes host oracles, traces, transfers and device execution"
+fp16,1,persistent_packed_weights,163053568,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+fp16,1,kv_cache,65536,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+fp16,1,peak_managed,247048,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+fp16,1,remaining_managed,0,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+fp16,1,weight_loading,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,1,weight_packing,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,1,initialization,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,1,prefill_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,1,decode_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,1,kernel_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,1,transfer_inclusive_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,1,peak_physical_memory,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,1,workspace_only_peak,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,7,trace_process_wall,5.625,s,MEASURED,"includes host oracles, traces, transfers and device execution"
+fp16,7,persistent_packed_weights,163053568,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+fp16,7,kv_cache,262144,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+fp16,7,peak_managed,1253152,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+fp16,7,remaining_managed,0,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+fp16,7,weight_loading,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,7,weight_packing,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,7,initialization,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,7,prefill_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,7,decode_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,7,kernel_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,7,transfer_inclusive_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,7,peak_physical_memory,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,7,workspace_only_peak,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,32,trace_process_wall,13.602,s,MEASURED,"includes host oracles, traces, transfers and device execution"
+fp16,32,persistent_packed_weights,163053568,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+fp16,32,kv_cache,1081344,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+fp16,32,peak_managed,5445252,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+fp16,32,remaining_managed,0,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+fp16,32,weight_loading,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,32,weight_packing,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,32,initialization,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,32,prefill_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,32,decode_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,32,kernel_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,32,transfer_inclusive_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,32,peak_physical_memory,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,32,workspace_only_peak,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,128,trace_process_wall,58.447,s,MEASURED,"includes host oracles, traces, transfers and device execution"
+fp16,128,persistent_packed_weights,163053568,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+fp16,128,kv_cache,4227072,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+fp16,128,peak_managed,21542916,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+fp16,128,remaining_managed,0,bytes,MEASURED,runtime-tracked; peak managed includes cache and excludes registry
+fp16,128,weight_loading,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,128,weight_packing,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,128,initialization,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,128,prefill_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,128,decode_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,128,kernel_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,128,transfer_inclusive_latency,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,128,peak_physical_memory,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed
+fp16,128,workspace_only_peak,,,BLOCKED,no isolated measurement in trace run; Layer 0 numerical acceptance failed

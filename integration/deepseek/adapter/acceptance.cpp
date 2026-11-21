@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include <numeric>
 
 using namespace deepseek;
 using namespace native_mlu;
@@ -83,7 +82,7 @@ std::vector<uint16_t> expected_norm(const std::vector<uint16_t> &words,
 int main(int argc, char **argv) try {
     if (argc != 6 || std::string(argv[1]) != "--authorized") return 2;
     const std::string dir = argv[3], mode = argv[4], dtype = argv[5];
-    if ((mode != "q" && mode != "kv") || (dtype != "bf16" && dtype != "fp16")) return 2;
+    if ((mode != "q" && mode != "kv" && mode != "projections") || (dtype != "bf16" && dtype != "fp16")) return 2;
     const Type type = dtype == "bf16" ? Type::bf16 : Type::fp16;
     Worker worker(argv[2]);
     Registry registry(worker);
@@ -92,7 +91,7 @@ int main(int argc, char **argv) try {
     Dispatch dispatch(worker, memory, workspace);
     Adapter native(worker, registry, memory, dispatch, dir, Backend::Native, type);
     Adapter cnnl(worker, registry, memory, dispatch, dir, Backend::CNNL, type);
-    const size_t slot = workspace.add(worker.add_queue(), 0, 0);
+    const size_t slot = workspace.add(worker.add_queue(), 2, 4);
     std::vector<void *> buffers;
     auto make = [&](int rows, int cols, Type format) {
         void *ptr = memory.allocate(size_t(rows) * cols *
@@ -106,26 +105,31 @@ int main(int argc, char **argv) try {
     const auto embedding = load_words(dir + "/token.bin", 2048, type);
     const auto input = make(1, 2048, type);
     upload(input, embedding);
-    const auto q = make(1, 3072, Type::fp32);
     bool ok = true;
-    if (mode == "q") {
-        const auto expected = cpu_projection(dir, Tensor::Q, embedding, type);
-        for (Adapter *adapter : {&native, &cnnl}) {
-            adapter->load(Tensor::Q);
-            workspace.start(slot);
-            auto padded = input;
-            ++padded.stride;
-            bool rejected = false;
-            try {
-                adapter->project(slot, Tensor::Q, padded, q);
-            } catch (const std::invalid_argument &) {
-                rejected = true;
+    if (mode != "kv") {
+        const auto cases = mode == "q" ? std::vector<Tensor>{Tensor::Q}
+                                       : std::vector<Tensor>{Tensor::Output, Tensor::Gate, Tensor::Up};
+        for (Tensor tensor : cases) {
+            const auto &c = contract(tensor);
+            const auto result = make(1, c.n, Type::fp32);
+            const auto expected = cpu_projection(dir, tensor, embedding, type);
+            for (Adapter *adapter : {&native, &cnnl}) {
+                adapter->load(tensor);
+                workspace.start(slot);
+                auto padded = input;
+                ++padded.stride;
+                bool rejected = false;
+                try {
+                    adapter->project(slot, tensor, padded, result);
+                } catch (const std::invalid_argument &) {
+                    rejected = true;
+                }
+                require(rejected, "invalid stride accepted");
+                adapter->project(slot, tensor, input, result);
+                workspace.finish(slot);
+                ok &= compare(c.alias, adapter->backend() == Backend::Native ? "native" : "cnnl",
+                              expected, download<float>(result));
             }
-            require(rejected, "invalid stride accepted");
-            adapter->project(slot, Tensor::Q, input, q);
-            workspace.finish(slot);
-            ok &= compare("q", adapter->backend() == Backend::Native ? "native" : "cnnl",
-                          expected, download<float>(q));
         }
     } else {
         for (Tensor tensor : {Tensor::InputNorm, Tensor::KvA, Tensor::KvB, Tensor::KvNorm})
@@ -180,22 +184,54 @@ int main(int argc, char **argv) try {
         ok &= compare("kv_a_matched_input", "cnnl", expected_a, download<float>(wide));
         ok &= compare("kv_b_matched_input", "cnnl", expected_b, download<float>(output));
 
-        // Position zero has cosine 1 and sine 0 for every checkpoint YaRN channel.
-        const auto rotary = make(17, 64, type);
-        const auto cosine = make(1, 64, type);
-        const auto sine = make(1, 64, type);
-        const auto positions = make(1, 1, Type::u32);
-        const auto rotated = make(17, 64, type);
-        const std::vector<uint16_t> rope_input(embedding.begin(), embedding.begin() + 17 * 64);
+        constexpr int sequence = 2, width = 64, heads = 17;
+        const auto rotary = make(heads * sequence, width, type);
+        const auto cosine = make(8, width, type);
+        const auto sine = make(8, width, type);
+        const auto positions = make(1, sequence, Type::u32);
+        const auto rotated = make(heads * sequence, width, type);
+        std::vector<uint16_t> rope_input(heads * sequence * width);
+        for (size_t i = 0; i < rope_input.size(); ++i)
+            rope_input[i] = embedding[i % embedding.size()];
+        const std::vector<uint32_t> indices{7, 1};
+        std::vector<uint16_t> cos_words(8 * width), sin_words(8 * width);
+        const auto correction = [](double rotations) {
+            return width * std::log(4096 / (rotations * 2 * std::acos(-1.0))) /
+                   (2 * std::log(10000.0));
+        };
+        const float lo = std::max(0., std::floor(correction(32)));
+        const float hi = std::min(63., std::ceil(correction(1)));
+        for (int channel = 0; channel < width / 2; ++channel) {
+            const float divisor = std::pow(10000.f, float(2 * channel) / width);
+            const float ramp = std::clamp((channel - lo) / (hi - lo), 0.f, 1.f);
+            const float freq = (1 - ramp) / divisor + ramp / (40.f * divisor);
+            for (int pos = 0; pos < 8; ++pos) {
+                const size_t i = pos * width + channel;
+                cos_words[i] = cos_words[i + 32] = encode(std::cos(pos * freq), type);
+                sin_words[i] = sin_words[i + 32] = encode(std::sin(pos * freq), type);
+            }
+        }
         upload(rotary, rope_input);
-        upload(cosine, std::vector<uint16_t>(64, encode(1.f, type)));
-        upload(sine, std::vector<uint16_t>(64, 0));
-        upload(positions, std::vector<uint32_t>{0});
+        upload(cosine, cos_words);
+        upload(sine, sin_words);
+        upload(positions, indices);
         workspace.start(slot);
-        native.rope(slot, rotary, cosine, sine, positions, rotated, 1);
+        native.rope(slot, rotary, cosine, sine, positions, rotated, sequence);
         workspace.finish(slot);
-        require(download<uint16_t>(rotated) == rope_input, "YaRN position zero changed activation bits");
-        std::puts("backend=native stage=yarn_rope_pos0 bit_exact=1");
+        const auto result = download<uint16_t>(rotated);
+        for (int row = 0; row < heads * sequence; ++row) {
+            const auto table = indices[row % sequence] * width;
+            for (int channel = 0; channel < width; ++channel) {
+                const bool second = channel >= width / 2;
+                const size_t pair = row * width + 2 * (channel % (width / 2));
+                const float direct = decode(rope_input[pair + second], type);
+                const float crossed = (second ? 1.f : -1.f) * decode(rope_input[pair + !second], type);
+                const float left = decode(encode(direct * decode(cos_words[table + channel], type), type), type);
+                const float right = decode(encode(crossed * decode(sin_words[table + channel], type), type), type);
+                require(result[row * width + channel] == encode(left + right, type), "YaRN output bits");
+            }
+        }
+        std::puts("backend=native stage=yarn_rope positions=7/1 elements=2176 bit_exact=1");
     }
     workspace.close();
     native.close();

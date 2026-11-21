@@ -1,5 +1,65 @@
+# CMake build artifacts
 /build/
+/cmake_build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Compiled object files and executables
+*.o
+*.a
+*.so
+*.so.*
+*.dylib
+*.exe
+*.out
+*.app
+
+# Test binaries and executables
+*_test
+*_reference
+gemm_reference
+*_native_test
+
+# Compiled shared libraries
+*.ko
+*.mod.c
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+.clangd
+
+# Project-specific build and artifact directories
 /artifacts/build/
+/artifacts/build/**/*.o
+/artifacts/build/**/*.a
+/artifacts/build/mlu8-bringup*
 /artifacts/accuracy/*.csv
 /artifacts/performance/*.csv
 /artifacts/logs/*.log
+/artifacts/logs/*.txt
+
+# Temporary files and cache
+*.tmp
+*.bak
+.cache/
+*.pyc
+__pycache__/
+
+# Local configuration
+.local/
+.env.local
+local.conf
+
+# Profiling and performance tools
+perf.data
+perf.data.old
+*.prof

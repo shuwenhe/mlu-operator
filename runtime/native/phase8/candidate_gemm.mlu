@@ -1,0 +1,79 @@
+// Experimental AVX2-order GEMM for the checkpoint's full 64-aligned K only.
+#include <bang.h>
+#include "matrix_gemm.h"
+
+#ifdef PHASE8_BF16
+using Low = bfloat16_t;
+#define CANDIDATE phase8_candidate_bf16
+#define WIDEN __bang_bfloat162float
+#else
+using Low = half;
+#define CANDIDATE phase8_candidate_fp16
+#define WIDEN __bang_half2float
+#endif
+
+namespace {
+constexpr int lanes = 64;
+constexpr int n_tile = matrix_n;
+constexpr int k_tile = matrix_k;
+
+__mlu_global__ void avx2_gemm(const Low *a, const Low *packed, float *c, int m, int n, int k) {
+    __nram__ Low weight_rows[n_tile * k_tile], weight_columns[n_tile * k_tile], input[k_tile];
+    __nram__ float weights[n_tile * k_tile], activation[k_tile], accum[lanes * n_tile];
+    __nram__ float temp[n_tile], folded[n_tile];
+    const int quant_n = (n + n_tile - 1) / n_tile;
+    const int quant_k = (k + k_tile - 1) / k_tile;
+    for (int task = taskId; task < m * quant_n; task += taskDim) {
+        const int row = task / quant_n, col_tile = task % quant_n;
+        __bang_write_value(accum, lanes * n_tile, 0.f);
+        for (int block = 0; block < quant_k; ++block) {
+            const int start = block * k_tile;
+            const int width = k - start < k_tile ? k - start : k_tile;
+            __memcpy(input, a + size_t(row) * k + start, width * sizeof(Low), GDRAM2NRAM);
+            WIDEN(activation, input, width);
+            __memcpy(weight_rows, packed + (size_t(col_tile) * quant_k + block) * n_tile * k_tile,
+                     sizeof(weight_rows), GDRAM2NRAM);
+            __bang_transpose(weight_columns, weight_rows, n_tile, k_tile);
+            WIDEN(weights, weight_columns, n_tile * k_tile);
+            for (int p = 0; p < width; ++p) {
+                float *lane = accum + (p % lanes) * n_tile;
+                __bang_mul_scalar(temp, weights + p * n_tile, activation[p], n_tile);
+                __bang_add(lane, lane, temp, n_tile);
+            }
+        }
+        for (int lane = 0; lane < 8; ++lane) {
+            float *base = accum + lane * n_tile;
+            float *a1 = base + 8 * n_tile;
+            float *a2 = base + 16 * n_tile;
+            float *a3 = base + 24 * n_tile;
+            __bang_add(base, base, base + 32 * n_tile, n_tile);
+            __bang_add(a2, a2, base + 48 * n_tile, n_tile);
+            __bang_add(a3, a3, base + 56 * n_tile, n_tile);
+            __bang_add(a1, a1, base + 40 * n_tile, n_tile);
+            __bang_add(base, base, a2, n_tile);
+            __bang_add(a3, a3, a1, n_tile);
+            __bang_add(base, base, a3, n_tile);
+        }
+        for (int lane = 0; lane < 4; ++lane)
+            __bang_add(accum + lane * n_tile, accum + lane * n_tile,
+                       accum + (lane + 4) * n_tile, n_tile);
+        __bang_add(accum, accum, accum + 2 * n_tile, n_tile);
+        __bang_add(accum + n_tile, accum + n_tile, accum + 3 * n_tile, n_tile);
+        __bang_add(temp, accum, accum + n_tile, n_tile);
+        const int start = col_tile * n_tile;
+        const int width = n - start < n_tile ? n - start : n_tile;
+        for (int col = 0; col < width; ++col) folded[col] = temp[matrix_rhs_slot(0, col) / k_tile];
+        __memcpy(c + size_t(row) * n + start, folded, width * sizeof(float), NRAM2GDRAM);
+    }
+}
+}
+
+extern "C" cnrtRet_t CANDIDATE(cnrtQueue_t queue, const uint16_t *a, const uint16_t *packed,
+                              float *c, int m, int n, int k) {
+    if (!queue || !a || !packed || !c || m <= 0 || m > 128 || n <= 0 || n > 10944 ||
+        n % 64 || k <= 0 || k > 10944 || k % lanes)
+        return cnrtErrorArgsInvalid;
+    avx2_gemm<<<(cnrtDim3_t{32, 1, 1}), cnrtFuncTypeBlock, queue>>>(
+        reinterpret_cast<const Low *>(a), reinterpret_cast<const Low *>(packed), c, m, n, k);
+    return cnrtGetLastError();
+}

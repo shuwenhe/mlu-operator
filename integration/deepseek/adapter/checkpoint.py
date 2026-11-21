@@ -38,7 +38,7 @@ def main(root, output):
     headers = load_headers(root)
     digest = hashlib.sha256(config_bytes)
     digest.update((root / "model.safetensors.index.json").read_bytes())
-    output.mkdir(parents=True, exist_ok=True)
+    output.mkdir(parents=True)
     entries = []
     for alias, (suffix, shape) in TENSORS.items():
         name = "model.layers.0." + suffix
