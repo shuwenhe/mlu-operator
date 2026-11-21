@@ -1,0 +1,67 @@
+backend,dtype,prefill,metric,value,unit,status,scope
+native_avx2_compatible,bf16,2,trace_process_wall,3.344,s,MEASURED,"two slots, two repetitions, host reference, transfers and trace I/O"
+native_avx2_compatible,bf16,2,packed_weights,163053568,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,bf16,2,kv_cache,98304,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,bf16,2,peak_managed,414732,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,bf16,2,remaining,0,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,bf16,1,trace_process_wall,3.19,s,MEASURED,"two slots, two repetitions, host reference, transfers and trace I/O"
+native_avx2_compatible,bf16,1,packed_weights,163053568,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,bf16,1,kv_cache,65536,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,bf16,1,peak_managed,247048,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,bf16,1,remaining,0,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,bf16,7,trace_process_wall,4.552,s,MEASURED,"two slots, two repetitions, host reference, transfers and trace I/O"
+native_avx2_compatible,bf16,7,packed_weights,163053568,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,bf16,7,kv_cache,262144,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,bf16,7,peak_managed,1253152,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,bf16,7,remaining,0,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,bf16,32,trace_process_wall,11.676,s,MEASURED,"two slots, two repetitions, host reference, transfers and trace I/O"
+native_avx2_compatible,bf16,32,packed_weights,163053568,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,bf16,32,kv_cache,1081344,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,bf16,32,peak_managed,5445252,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,bf16,32,remaining,0,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,bf16,128,trace_process_wall,38.255,s,MEASURED,"two slots, two repetitions, host reference, transfers and trace I/O"
+native_avx2_compatible,bf16,128,packed_weights,163053568,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,bf16,128,kv_cache,4227072,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,bf16,128,peak_managed,21542916,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,bf16,128,remaining,0,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,fp16,1,trace_process_wall,3.762,s,MEASURED,"two slots, two repetitions, host reference, transfers and trace I/O"
+native_avx2_compatible,fp16,1,packed_weights,163053568,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,fp16,1,kv_cache,65536,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,fp16,1,peak_managed,247048,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,fp16,1,remaining,0,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,fp16,7,trace_process_wall,5.616,s,MEASURED,"two slots, two repetitions, host reference, transfers and trace I/O"
+native_avx2_compatible,fp16,7,packed_weights,163053568,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,fp16,7,kv_cache,262144,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,fp16,7,peak_managed,1253152,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,fp16,7,remaining,0,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,fp16,32,trace_process_wall,13.836,s,MEASURED,"two slots, two repetitions, host reference, transfers and trace I/O"
+native_avx2_compatible,fp16,32,packed_weights,163053568,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,fp16,32,kv_cache,1081344,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,fp16,32,peak_managed,5445252,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,fp16,32,remaining,0,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,fp16,128,trace_process_wall,57.7,s,MEASURED,"two slots, two repetitions, host reference, transfers and trace I/O"
+native_avx2_compatible,fp16,128,packed_weights,163053568,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,fp16,128,kv_cache,4227072,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,fp16,128,peak_managed,21542916,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_avx2_compatible,fp16,128,remaining,0,bytes,MEASURED,runtime accounting; peak managed excludes packed registry
+native_default,,,kernel_latency,,,BLOCKED,Phase E requires numerical acceptance
+native_default,,,prefill_latency,,,BLOCKED,Phase E requires numerical acceptance
+native_default,,,decode_latency,,,BLOCKED,Phase E requires numerical acceptance
+native_default,,,throughput,,,BLOCKED,Phase E requires numerical acceptance
+native_default,,,weight_packing,,,BLOCKED,Phase E requires numerical acceptance
+native_default,,,transfer_inclusive_latency,,,BLOCKED,Phase E requires numerical acceptance
+native_default,,,peak_physical_memory,,,BLOCKED,Phase E requires numerical acceptance
+native_avx2_compatible,,,kernel_latency,,,BLOCKED,Phase E requires numerical acceptance
+native_avx2_compatible,,,prefill_latency,,,BLOCKED,Phase E requires numerical acceptance
+native_avx2_compatible,,,decode_latency,,,BLOCKED,Phase E requires numerical acceptance
+native_avx2_compatible,,,throughput,,,BLOCKED,Phase E requires numerical acceptance
+native_avx2_compatible,,,weight_packing,,,BLOCKED,Phase E requires numerical acceptance
+native_avx2_compatible,,,transfer_inclusive_latency,,,BLOCKED,Phase E requires numerical acceptance
+native_avx2_compatible,,,peak_physical_memory,,,BLOCKED,Phase E requires numerical acceptance
+cnnl_reference,,,kernel_latency,,,BLOCKED,Phase E requires numerical acceptance
+cnnl_reference,,,prefill_latency,,,BLOCKED,Phase E requires numerical acceptance
+cnnl_reference,,,decode_latency,,,BLOCKED,Phase E requires numerical acceptance
+cnnl_reference,,,throughput,,,BLOCKED,Phase E requires numerical acceptance
+cnnl_reference,,,weight_packing,,,BLOCKED,Phase E requires numerical acceptance
+cnnl_reference,,,transfer_inclusive_latency,,,BLOCKED,Phase E requires numerical acceptance
+cnnl_reference,,,peak_physical_memory,,,BLOCKED,Phase E requires numerical acceptance

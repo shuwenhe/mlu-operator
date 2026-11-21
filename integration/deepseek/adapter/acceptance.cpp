@@ -80,9 +80,12 @@ std::vector<uint16_t> expected_norm(const std::vector<uint16_t> &words,
 }
 
 int main(int argc, char **argv) try {
-    if (argc != 6 || std::string(argv[1]) != "--authorized") return 2;
+    if ((argc != 6 && argc != 7) || std::string(argv[1]) != "--authorized") return 2;
+    const std::string selected = argc == 7 ? argv[6] : "both";
+    if (selected != "both" && selected != "native_default" && selected != "cnnl_reference") return 2;
     const std::string dir = argv[3], mode = argv[4], dtype = argv[5];
     if ((mode != "q" && mode != "kv" && mode != "projections") || (dtype != "bf16" && dtype != "fp16")) return 2;
+    if (mode == "kv" && selected != "both") return 2;
     const Type type = dtype == "bf16" ? Type::bf16 : Type::fp16;
     Worker worker(argv[2]);
     Registry registry(worker);
@@ -114,6 +117,8 @@ int main(int argc, char **argv) try {
             const auto result = make(1, c.n, Type::fp32);
             const auto expected = cpu_projection(dir, tensor, embedding, type);
             for (Adapter *adapter : {&native, &cnnl}) {
+                if (selected == "native_default" && adapter->backend() != Backend::Native) continue;
+                if (selected == "cnnl_reference" && adapter->backend() != Backend::CNNL) continue;
                 adapter->load(tensor);
                 workspace.start(slot);
                 auto padded = input;
