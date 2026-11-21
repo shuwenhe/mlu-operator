@@ -30,16 +30,41 @@ static uint16_t encode_bf16(float x) {
 }
 
 static uint16_t encode_fp16(float x) {
-    const _Float16 value = static_cast<_Float16>(x);
-    uint16_t bits;
-    std::memcpy(&bits, &value, 2);
-    return bits;
+    // FP32 to FP16 conversion with rounding
+    if (std::isnan(x)) return 0x7e00;
+    if (x == INFINITY) return 0x7c00;
+    if (x == -INFINITY) return 0xfc00;
+    if (x == 0.0f) return 0;
+    
+    int sign = (std::signbit(x)) ? 0x8000 : 0;
+    float abs_x = std::abs(x);
+    
+    int exp = 0;
+    while (abs_x < 1.0f && exp > -15) { abs_x *= 2; exp--; }
+    while (abs_x >= 2.0f && exp < 16) { abs_x /= 2; exp++; }
+    
+    exp += 15;
+    if (exp >= 31) return sign | 0x7c00;
+    if (exp <= 0) return sign;
+    
+    int frac = (int)((abs_x - 1.0f) * 1024 + 0.5f) & 0x3ff;
+    return sign | (exp << 10) | frac;
 }
 
 static float decode_fp16(uint16_t x) {
-    _Float16 value;
-    std::memcpy(&value, &x, 2);
-    return static_cast<float>(value);
+    // FP16 to FP32 conversion
+    int sign = (x >> 15) & 1;
+    int exp = (x >> 10) & 0x1f;
+    int frac = x & 0x3ff;
+    
+    if (exp == 0) {
+        return sign ? -0.0f : 0.0f;
+    } else if (exp == 31) {
+        return (frac == 0) ? (sign ? -INFINITY : INFINITY) : NAN;
+    }
+    
+    float f = (1.0f + frac / 1024.0f) * std::pow(2.0f, exp - 15);
+    return sign ? -f : f;
 }
 
 static uint16_t encode_lowp(float x, bool is_fp16) {
