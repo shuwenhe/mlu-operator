@@ -1,0 +1,48 @@
+#include <bang.h>
+
+#if defined(PROBE_FP16_MATMUL) || defined(PROBE_BF16_MATMUL)
+#if defined(PROBE_FP16_MATMUL)
+using Input = half;
+#else
+using Input = bfloat16_t;
+#endif
+__mlu_global__ void probe_matmul(float *out, const Input *lhs, const Input *rhs) {
+    constexpr unsigned m = 16, k = 128, n = 128;
+    __nram__ Input a[m * k];
+    __wram__ Input b[k * n];
+    __nram__ float c[m * n];
+    __memcpy(a, lhs, sizeof(a), GDRAM2NRAM);
+    __memcpy(b, rhs, sizeof(b), GDRAM2WRAM);
+    __bang_matmul(c, a, b, m, k, n);
+    __memcpy(out, c, sizeof(c), NRAM2GDRAM);
+}
+#elif defined(PROBE_FP16_CONVERT) || defined(PROBE_BF16_CONVERT)
+#if defined(PROBE_FP16_CONVERT)
+using Input = half;
+#else
+using Input = bfloat16_t;
+#endif
+__mlu_global__ void probe_convert(float *out, const Input *src) {
+    constexpr unsigned count = 128;
+    __nram__ Input low[count];
+    __nram__ float wide[count];
+    __memcpy(low, src, sizeof(low), GDRAM2NRAM);
+#if defined(PROBE_FP16_CONVERT)
+    __bang_half2float(wide, low, count);
+#else
+    __bang_bfloat162float(wide, low, count);
+#endif
+    __memcpy(out, wide, sizeof(wide), NRAM2GDRAM);
+}
+#elif defined(PROBE_FP32_REDUCE)
+__mlu_global__ void probe_reduce(float *out, const float *src) {
+    constexpr unsigned count = 128;
+    __nram__ float values[count];
+    __nram__ float result[count];
+    __memcpy(values, src, sizeof(values), GDRAM2NRAM);
+    __bang_reduce_sum(result, values, count);
+    __memcpy(out, result, sizeof(float), NRAM2GDRAM);
+}
+#else
+#error Select a probe with -DPROBE_...
+#endif

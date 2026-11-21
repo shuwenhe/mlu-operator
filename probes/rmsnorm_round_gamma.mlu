@@ -1,0 +1,28 @@
+#include <bang.h>
+
+// One full 128-lane probe tile. Inputs are FP32 normalized values and
+// same-dtype gamma. This is the post-normalization stage only.
+#ifdef PARITY_BF16
+using Low = bfloat16_t;
+#define NARROW __bang_float2bfloat16_rn
+#define WIDEN __bang_bfloat162float
+#else
+using Low = half;
+#define NARROW __bang_float2half_rn
+#define WIDEN __bang_half2float
+#endif
+
+__mlu_global__ void rmsnorm_round_gamma(Low *output, const float *normalized,
+                                        const Low *gamma) {
+    constexpr int count = 128;
+    __nram__ float values[count], weights[count];
+    __nram__ Low rounded[count], gamma_local[count];
+    __memcpy(values, normalized, sizeof(values), GDRAM2NRAM);
+    __memcpy(gamma_local, gamma, sizeof(gamma_local), GDRAM2NRAM);
+    NARROW(rounded, values, count);
+    WIDEN(values, rounded, count);
+    WIDEN(weights, gamma_local, count);
+    __bang_mul(values, values, weights, count);
+    NARROW(rounded, values, count);
+    __memcpy(output, rounded, sizeof(rounded), NRAM2GDRAM);
+}

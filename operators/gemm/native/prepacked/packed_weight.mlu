@@ -1,0 +1,119 @@
+#include <bang.h>
+#include "packed_weight.h"
+#include "matrix_gemm.h"
+#include <chrono>
+#include <new>
+#include <stdexcept>
+#include <vector>
+
+__mlu_global__ void rhs_pack_kernel(const uint16_t *b, uint16_t *packed,
+                                    int k, int n, int64_t kt, int64_t tiles) {
+    // Bulk-load row-major data, transpose in NRAM, then lay out WRAM slots.
+    __nram__ uint16_t rows[matrix_k * matrix_n], transposed[matrix_k * matrix_n];
+    for (int64_t tile = taskId; tile < tiles; tile += taskDim) {
+        const int64_t kb = tile % kt * matrix_k, nb = tile / kt * matrix_n;
+        const int valid_k = k-kb < matrix_k ? int(k-kb) : matrix_k;
+        const int valid_n = n-nb < matrix_n ? int(n-nb) : matrix_n;
+        for (int p = 0; p < valid_k; ++p) {
+            __memcpy(rows+p*matrix_n,b+(kb+p)*n+nb,valid_n*sizeof(uint16_t),GDRAM2NRAM);
+            for (int j = valid_n; j < matrix_n; ++j) rows[p*matrix_n+j]=0;
+        }
+        for (int j = valid_k*matrix_n; j < matrix_k*matrix_n; ++j) rows[j]=0;
+        __bang_transpose(transposed,rows,matrix_k,matrix_n);
+        for (int slot = 0; slot < matrix_n; ++slot) {
+            const int col=4*(slot/8)+64*((slot%8)/4)+slot%4;
+            __memcpy(rows+slot*matrix_k,transposed+col*matrix_k,
+                     matrix_k*sizeof(uint16_t),NRAM2NRAM);
+        }
+        __memcpy(packed+tile*matrix_k*matrix_n,rows,sizeof(rows),NRAM2GDRAM);
+    }
+}
+
+namespace mlu {
+static bool aligned(const void *p, size_t alignment) {
+    return p && reinterpret_cast<uintptr_t>(p)%alignment == 0;
+}
+static int64_t tiles_for(int dim) { return (int64_t(dim)+127)/128; }
+
+cnrtRet_t allocate_weight(int k, int n, WeightType type, PackedWeight *&out) {
+    if (out || k <= 0 || n <= 0 || (type != WeightType::fp16 && type != WeightType::bf16))
+        return cnrtErrorArgsInvalid;
+    const uint64_t tiles = uint64_t(tiles_for(k))*tiles_for(n);
+    if (tiles > SIZE_MAX/(2*matrix_k*matrix_n)) return cnrtErrorArgsInvalid;
+    auto *w = new(std::nothrow) PackedWeight;
+    if (!w) return cnrtErrorSysNoMem;
+    w->k_=k; w->n_=n; w->type_=type;
+    w->bytes_=size_t(tiles)*2*matrix_k*matrix_n;
+    cnrtRet_t rc = cnrtGetDevice(&w->device_);
+    if (rc == cnrtSuccess) {
+        void *p = nullptr;
+        rc=cnrtMalloc(&p,w->bytes_);
+        w->data_=static_cast<uint16_t*>(p);
+    }
+    if(rc != cnrtSuccess) { delete w; return rc; }
+    out=w;
+    return cnrtSuccess;
+}
+
+cnrtRet_t release_packed_weight(PackedWeight *&w) {
+    if (!w) return cnrtSuccess;
+    int device = -1;
+    const auto selected = cnrtGetDevice(&device);
+    if (selected != cnrtSuccess) return selected;
+    if (device != w->device_) return cnrtErrorDeviceInvalid;
+    const auto rc=cnrtFree(w->data_);
+    if(rc==cnrtSuccess) { delete w; w=nullptr; }
+    return rc;
+}
+
+cnrtRet_t pack_rhs_host(const uint16_t *b,int k,int n,WeightType type,PackedWeight *&out,HostPackTiming *timing) {
+    if(!aligned(b,alignof(uint16_t))) return cnrtErrorArgsInvalid;
+    auto rc=allocate_weight(k,n,type,out);
+    if(rc!=cnrtSuccess) return rc;
+    try {
+        const auto start=std::chrono::steady_clock::now();
+        std::vector<uint16_t> packed(out->bytes()/2);
+        const int64_t kt=tiles_for(k);
+        for(int p=0;p<k;++p) for(int j=0;j<n;++j) {
+            const int64_t tile=int64_t(j/matrix_n)*kt+p/matrix_k;
+            packed[tile*matrix_k*matrix_n+matrix_rhs_slot(p%matrix_k,j%matrix_n)]=b[int64_t(p)*n+j];
+        }
+        const auto packed_at=std::chrono::steady_clock::now();
+        rc=cnrtMemcpy(const_cast<uint16_t*>(out->data()),packed.data(),out->bytes(),cnrtMemcpyHostToDev);
+        if(timing) {
+            using Us = std::chrono::duration<double,std::micro>;
+            timing->pack_us=Us(packed_at-start).count();
+            timing->upload_us=Us(std::chrono::steady_clock::now()-packed_at).count();
+        }
+    } catch(const std::bad_alloc&) { rc=cnrtErrorSysNoMem; }
+      catch(const std::length_error&) { rc=cnrtErrorArgsInvalid; }
+    if(rc!=cnrtSuccess) release_packed_weight(out);
+    return rc;
+}
+
+cnrtRet_t pack_rhs_device(const uint16_t *b,int k,int n,WeightType type,cnrtQueue_t q,PackedWeight *&out,
+                         cnrtNotifier_t begin,cnrtNotifier_t end) {
+    if(!q || (!!begin != !!end) || !aligned(b,alignof(uint16_t))) return cnrtErrorArgsInvalid;
+    auto rc=allocate_weight(k,n,type,out);
+    if(rc!=cnrtSuccess) return rc;
+    const int64_t kt=tiles_for(k), tiles=kt*tiles_for(n);
+    if(begin && (rc=cnrtPlaceNotifier(begin,q))!=cnrtSuccess) return rc;
+    rhs_pack_kernel<<<(cnrtDim3_t{unsigned(tiles<32?tiles:32),1,1}),cnrtFuncTypeBlock,q>>>(
+        b,const_cast<uint16_t*>(out->data()),k,n,kt,tiles);
+    // Even on a launch error the handle remains owned by the caller, which
+    // must resolve queue state before releasing it.
+    rc=cnrtGetLastError();
+    return rc==cnrtSuccess && end ? cnrtPlaceNotifier(end,q) : rc;
+}
+
+cnrtRet_t gemm_prepacked(const uint16_t *a,const PackedWeight &w,float *c,int m,cnrtQueue_t q) {
+    if(!q || !aligned(a,alignof(uint16_t)) || !aligned(c,alignof(float)) || m<=0)
+        return cnrtErrorArgsInvalid;
+    int device=-1;
+    const auto rc=cnrtGetDevice(&device);
+    if(rc!=cnrtSuccess) return rc;
+    if(device!=w.device()) return cnrtErrorDeviceInvalid;
+    auto launch=w.type()==WeightType::fp16?matrix_gemm_fp16:matrix_gemm_bf16;
+    return launch(q,a,w.data(),c,m,w.n(),w.k());
+}
+}

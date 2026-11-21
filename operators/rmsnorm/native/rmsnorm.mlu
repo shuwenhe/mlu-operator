@@ -1,0 +1,81 @@
+#include <bang.h>
+#include "rmsnorm_native.h"
+
+#ifdef RMSNORM_BF16
+using Low = bfloat16_t;
+#define WIDEN __bang_bfloat162float
+#define NARROW __bang_float2bfloat16_rn
+#define KERNEL bang_rmsnorm_bf16_kernel
+#define LAUNCH bang_rmsnorm_bf16
+#else
+using Low = half;
+#define WIDEN __bang_half2float
+#define NARROW __bang_float2half_rn
+#define KERNEL bang_rmsnorm_fp16_kernel
+#define LAUNCH bang_rmsnorm_fp16
+#endif
+
+__mlu_global__ void KERNEL(const Low *x, const Low *gamma, Low *output,
+                          float *normalized, Low *rounded, int rows, int width, float eps) {
+    constexpr int tile = 128;
+    __nram__ Low input[tile], low[tile];
+    __nram__ float values[tile], aux[tile], work[tile];
+    for (int64_t row = taskId; row < rows; row += taskDim) {
+        const int64_t base = row * width;
+        float squares = 0.0f;
+        for (int64_t start = 0; start < width; start += tile) {
+            const int count = width - start < tile ? static_cast<int>(width - start) : tile;
+            __memcpy(input, x + base + start, count * sizeof(Low), GDRAM2NRAM);
+            for (int i = count; i < tile; ++i)
+                input[i] = Low{};
+            WIDEN(values, input, tile);
+            __bang_mul(work, values, values, tile);
+            for (int i = 0; i < count; ++i)
+                squares += work[i];
+        }
+
+        const float variance_eps = squares / static_cast<float>(width) + eps;
+        for (int i = 0; i < tile; ++i)
+            aux[i] = variance_eps;
+        __bang_rsqrt(work, aux, tile);
+        const float inverse = work[0];
+        for (int i = 0; i < tile; ++i)
+            aux[i] = inverse;
+
+        for (int64_t start = 0; start < width; start += tile) {
+            const int count = width - start < tile ? static_cast<int>(width - start) : tile;
+            const int64_t offset = base + start;
+            __memcpy(input, x + offset, count * sizeof(Low), GDRAM2NRAM);
+            for (int i = count; i < tile; ++i)
+                input[i] = Low{};
+            WIDEN(values, input, tile);
+            __bang_mul(work, values, aux, tile);
+            if (normalized)
+                __memcpy(normalized + offset, work, count * sizeof(float), NRAM2GDRAM);
+            NARROW(low, work, tile);
+            if (rounded)
+                __memcpy(rounded + offset, low, count * sizeof(Low), NRAM2GDRAM);
+            WIDEN(values, low, tile);
+            __memcpy(input, gamma + start, count * sizeof(Low), GDRAM2NRAM);
+            for (int i = count; i < tile; ++i)
+                input[i] = Low{};
+            WIDEN(work, input, tile);
+            __bang_mul(work, values, work, tile);
+            NARROW(low, work, tile);
+            __memcpy(output + offset, low, count * sizeof(Low), NRAM2GDRAM);
+        }
+    }
+}
+
+extern "C" cnrtRet_t LAUNCH(cnrtQueue_t queue, const uint16_t *x, const uint16_t *gamma,
+    uint16_t *out, float *normalized, uint16_t *rounded, int rows, int width, float eps) {
+    if (!queue || !x || !gamma || !out || rows <= 0 || width <= 0 ||
+        !(eps > 0.0f && eps <= __FLT_MAX__))
+        return cnrtErrorArgsInvalid;
+    const cnrtDim3_t grid = {static_cast<unsigned>(rows < 32 ? rows : 32), 1, 1};
+    KERNEL<<<grid, cnrtFuncTypeBlock, queue>>>(
+        reinterpret_cast<const Low *>(x), reinterpret_cast<const Low *>(gamma),
+        reinterpret_cast<Low *>(out), normalized, reinterpret_cast<Low *>(rounded),
+        rows, width, eps);
+    return cnrtGetLastError();
+}

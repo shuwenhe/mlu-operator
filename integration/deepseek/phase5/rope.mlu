@@ -1,0 +1,96 @@
+#include <bang.h>
+#include <cnrt.h>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
+#include <vector>
+#ifdef ROPE_BF16
+using Low = bfloat16_t;
+#define WIDEN __bang_bfloat162float
+#define NARROW __bang_float2bfloat16_rn
+#else
+using Low = half;
+#define WIDEN __bang_half2float
+#define NARROW __bang_float2half_rn
+#endif
+constexpr int width=64, lanes=128, heads=17;
+__mlu_global__ void yarn_rotate(const Low *input,const Low *cos,const Low *sin,
+    const uint32_t *positions,Low *out,int seq) {
+    __nram__ Low source[width], direct[lanes], rotated[lanes], coeff[lanes];
+    __nram__ float x[lanes], y[lanes], c[lanes], first[lanes], second[lanes];
+    for(int row=taskId;row<heads*seq;row+=taskDim) {
+        const int slot=positions[row%seq];
+        __memcpy(source,input+row*width,sizeof(source),GDRAM2NRAM);
+        for(int i=0;i<width/2;++i) {
+            direct[i]=source[2*i]; direct[i+32]=source[2*i+1];
+            auto *bits=reinterpret_cast<uint16_t*>(rotated);
+            const auto *src=reinterpret_cast<const uint16_t*>(source);
+            bits[i]=src[2*i+1]^0x8000; bits[i+32]=src[2*i];
+        }
+        for(int i=width;i<lanes;++i) { direct[i]=Low{}; rotated[i]=Low{}; coeff[i]=Low{}; }
+        WIDEN(x,direct,lanes); WIDEN(y,rotated,lanes);
+        __memcpy(coeff,cos+slot*width,width*sizeof(Low),GDRAM2NRAM);
+        WIDEN(c,coeff,lanes); __bang_mul(first,x,c,lanes); NARROW(direct,first,lanes);
+        __memcpy(coeff,sin+slot*width,width*sizeof(Low),GDRAM2NRAM);
+        WIDEN(c,coeff,lanes); __bang_mul(second,y,c,lanes); NARROW(rotated,second,lanes);
+        WIDEN(first,direct,lanes); WIDEN(second,rotated,lanes);
+        __bang_add(c,first,second,lanes); NARROW(coeff,c,lanes);
+        __memcpy(out+row*width,coeff,width*sizeof(Low),NRAM2GDRAM);
+    }
+}
+#define CHECK(call) do { auto rc=(call); if(rc!=cnrtSuccess) { std::fprintf(stderr,"%s: %u\n",#call,unsigned(rc)); std::exit(1); } } while(0)
+struct Buffer {
+    void *p=nullptr;
+    explicit Buffer(size_t n){ CHECK(cnrtMalloc(&p,n)); }
+    ~Buffer(){ CHECK(cnrtFree(p)); }
+    template<class T> void upload(std::vector<T>&x){ CHECK(cnrtMemcpy(p,x.data(),x.size()*sizeof(T),cnrtMemcpyHostToDev)); }
+};
+template<class T> bool read(std::istream &s,std::vector<T> &v) {
+    return bool(s.read(reinterpret_cast<char*>(v.data()),v.size()*sizeof(T)));
+}
+static float value(uint16_t word) {
+#ifdef ROPE_BF16
+    uint32_t bits=uint32_t(word)<<16; float f; std::memcpy(&f,&bits,4); return f;
+#else
+    int e=(word>>10)&31; const int mant=word&1023;
+    return (word&0x8000?-1.0f:1.0f)*std::ldexp(float(e?1024+mant:mant),(e?e:1)-25);
+#endif
+}
+int main(int argc,char **argv) {
+    if(argc<2) return 2;
+    unsigned devices=0; CHECK(cnrtGetDeviceCount(&devices)); if(devices!=1) return 2;
+    CHECK(cnrtSetDevice(0)); cnrtQueue_t q; CHECK(cnrtQueueCreate(&q));
+    bool ok=true;
+    for(int f=1;f<argc;++f) {
+        std::ifstream in(argv[f],std::ios::binary);
+        uint32_t h[2];
+        if(!in.read(reinterpret_cast<char*>(h),sizeof(h)) || !h[0] || !h[1] || h[0]>1024 || h[1]>1024) return 2;
+        const int seq=h[0], count=heads*seq*width;
+        std::vector<uint32_t> pos(seq);
+        std::vector<uint16_t> cos(h[1]*width),sin(cos.size()),input(count),expected(count),actual(count);
+        if(!read(in,pos)||!read(in,cos)||!read(in,sin)||!read(in,input)||!read(in,expected)) return 2;
+        for(auto i:pos) if(i>=h[1]) return 2;
+        Buffer dp(seq*4),dc(cos.size()*2),ds(sin.size()*2),dx(count*2),dy(count*2);
+        dp.upload(pos);dc.upload(cos);ds.upload(sin);dx.upload(input);
+        yarn_rotate<<<(cnrtDim3_t{32,1,1}),cnrtFuncTypeBlock,q>>>(
+            static_cast<Low*>(dx.p),static_cast<Low*>(dc.p),static_cast<Low*>(ds.p),
+            static_cast<uint32_t*>(dp.p),static_cast<Low*>(dy.p),seq);
+        CHECK(cnrtGetLastError()); CHECK(cnrtQueueSync(q));
+        CHECK(cnrtMemcpy(actual.data(),dy.p,count*2,cnrtMemcpyDevToHost));
+        double max_abs=0, mean=0; size_t bad=0, signed_zero=0;
+        for(int i=0;i<count;++i) {
+            const auto err=std::fabs(double(value(actual[i]))-value(expected[i]));
+            max_abs=std::fmax(max_abs,err);mean+=err;
+            if(actual[i]!=expected[i]) {
+                if(!(actual[i]&0x7fff) && !(expected[i]&0x7fff)) ++signed_zero;
+                else ++bad;
+            }
+        }
+        std::printf("%s,%d,%d,%zu,%zu,%.9g,%.9g\n",argv[f],seq,count,bad,signed_zero,max_abs,mean/count);
+        ok&=bad==0;
+    }
+    CHECK(cnrtQueueDestroy(q));
+    return !ok;
+}

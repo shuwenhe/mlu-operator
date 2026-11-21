@@ -1,0 +1,5 @@
+#define GEMM_INPUT half
+#define GEMM_CONVERT __bang_half2float
+#define GEMM_KERNEL mlu_bang_gemm_fp16_kernel
+#define GEMM_LAUNCH mlu_bang_gemm_fp16
+#include "gemm_device.h"

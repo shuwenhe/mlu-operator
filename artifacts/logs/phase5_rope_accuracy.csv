@@ -1,0 +1,7 @@
+fixture,seq,elements,nonzero_bit_mismatches,signed_zero_differences,max_abs,mean_abs
+/results/phase5/fp16_1.rope,1,1088,0,0,0,0
+/results/phase5/fp16_65.rope,65,70720,0,0,0,0
+/results/phase5/fp16_7.rope,7,7616,0,0,0,0
+/results/phase5/bf16_1.rope,1,1088,0,0,0,0
+/results/phase5/bf16_65.rope,65,70720,0,0,0,0
+/results/phase5/bf16_7.rope,7,7616,0,0,0,0

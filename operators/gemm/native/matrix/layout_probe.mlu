@@ -1,0 +1,66 @@
+#include <bang.h>
+#include <cnrt.h>
+#include <cstdio>
+#include <algorithm>
+#include <cstdlib>
+#include <cstring>
+#include <vector>
+#ifdef MATRIX_BF16
+using Low = bfloat16_t;
+#else
+using Low = half;
+#endif
+constexpr int M=16,K=128,N=128;
+__mlu_global__ void layout(const Low *x,const Low *y,float *z) {
+    __nram__ Low a[M*K];
+    __wram__ Low b[K*N];
+    __nram__ float c[M*N];
+    __memcpy(a,x,sizeof(a),GDRAM2NRAM);
+    __memcpy(b,y,sizeof(b),GDRAM2WRAM);
+    __bang_matmul(c,a,b,M,K,N);
+    __memcpy(z,c,sizeof(c),NRAM2GDRAM);
+}
+static void check(cnrtRet_t s, const char *name) {
+    if(s != cnrtSuccess) { std::fprintf(stderr,"%s %u %s\n",name,unsigned(s),cnrtGetErrorStr(s)); std::exit(1); }
+}
+#define C(call) check(call,#call)
+int main() {
+    unsigned count=0; C(cnrtGetDeviceCount(&count)); if(count!=1) return 2;
+    C(cnrtSetDevice(0)); cnrtQueue_t q; C(cnrtQueueCreate(&q));
+    void *a,*b,*c; C(cnrtMalloc(&a,2*M*K)); C(cnrtMalloc(&b,2*K*N)); C(cnrtMalloc(&c,4*M*N));
+    std::vector<uint16_t> x(M*K),y(K*N);
+    std::vector<float> z(M*N);
+    std::vector<int> mapping(K*N);
+#ifdef MATRIX_BF16
+    constexpr uint16_t one=0x3f80;
+#else
+    constexpr uint16_t one=0x3c00;
+#endif
+    for(int slab=0;slab<K;slab+=M) {
+        std::fill(x.begin(),x.end(),0);
+        for(int m=0;m<M;++m) x[m*K+slab+m]=one;
+        C(cnrtMemcpy(a,x.data(),2*x.size(),cnrtMemcpyHostToDev));
+        for(int digit=0;digit<2;++digit) {
+            for(int i=0;i<K*N;++i) {
+                const float f=(digit ? i/128 : i%128)+1;
+#ifdef MATRIX_BF16
+                uint32_t u; std::memcpy(&u,&f,4); y[i]=u>>16;
+#else
+                unsigned v=unsigned(f), e=0; for(unsigned t=v;t>1;t>>=1) ++e; y[i]=((15+e)<<10)|((v-(1u<<e))<<(10-e));
+#endif
+            }
+            C(cnrtMemcpy(b,y.data(),2*y.size(),cnrtMemcpyHostToDev));
+            layout<<<(cnrtDim3_t{1,1,1}),cnrtFuncTypeBlock,q>>>(
+                static_cast<Low*>(a),static_cast<Low*>(b),static_cast<float*>(c));
+            C(cnrtGetLastError()); C(cnrtQueueSync(q));
+            C(cnrtMemcpy(z.data(),c,4*z.size(),cnrtMemcpyDevToHost));
+            for(int i=0;i<M*N;++i) {
+                if(!(z[i]>=1 && z[i]<=128 && z[i]==int(z[i]))) return 3;
+                mapping[slab*N+i]+=(int(z[i])-1)*(digit?128:1);
+            }
+        }
+    }
+    for(int k=0;k<K;++k) for(int n=0;n<N;++n)
+        std::printf("%d,%d,%d\n",k,n,mapping[k*N+n]);
+    C(cnrtFree(c)); C(cnrtFree(b)); C(cnrtFree(a)); C(cnrtQueueDestroy(q));
+}

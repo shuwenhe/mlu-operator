@@ -1,0 +1,51 @@
+#include <bang.h>
+#include "matrix_gemm.h"
+#ifdef MATRIX_BF16
+using Low = bfloat16_t;
+#define KERNEL matrix_bf16_kernel
+#define LAUNCH matrix_gemm_bf16
+#else
+using Low = half;
+#define KERNEL matrix_fp16_kernel
+#define LAUNCH matrix_gemm_fp16
+#endif
+
+__mlu_global__ void KERNEL(const Low *a, const Low *packed, float *c, int m, int n, int k) {
+    __nram__ Low aa[matrix_m * matrix_k];
+    __wram__ Low bb[matrix_k * matrix_n];
+    __nram__ float partial[matrix_m * matrix_n], total[matrix_m * matrix_n];
+    const int64_t nt = (int64_t(n)+matrix_n-1)/matrix_n;
+    const int64_t kt = (int64_t(k)+matrix_k-1)/matrix_k;
+    const int64_t mt = (int64_t(m)+matrix_m-1)/matrix_m;
+    for (int64_t tile = taskId; tile < mt*nt; tile += taskDim) {
+        const int64_t row = tile/nt*matrix_m, col = tile%nt*matrix_n;
+        const int rows = m-row < matrix_m ? int(m-row) : matrix_m;
+        const int cols = n-col < matrix_n ? int(n-col) : matrix_n;
+        for (int64_t slab=0; slab<kt; ++slab) {
+            const int64_t begin = slab*matrix_k;
+            const int inner = k-begin < matrix_k ? int(k-begin) : matrix_k;
+            if (rows != matrix_m || inner != matrix_k)
+                __bang_write_zero(aa, matrix_m*matrix_k);
+            for (int i=0; i<rows; ++i)
+                __memcpy(aa+i*matrix_k, a+(row+i)*k+begin, inner*sizeof(Low), GDRAM2NRAM);
+            __memcpy(bb, packed+(tile%nt*kt+slab)*matrix_k*matrix_n, sizeof(bb), GDRAM2WRAM);
+            __bang_matmul(partial, aa, bb, matrix_m, matrix_k, matrix_n);
+            if (slab == 0)
+                __memcpy(total, partial, sizeof(total), NRAM2NRAM);
+            else
+                __bang_add(total, total, partial, matrix_m*matrix_n);
+        }
+        for (int i=0; i<rows; ++i)
+            __memcpy(c+(row+i)*n+col, total+i*matrix_n, cols*sizeof(float), NRAM2GDRAM);
+    }
+}
+
+extern "C" cnrtRet_t LAUNCH(cnrtQueue_t q,const uint16_t *a,const uint16_t *b,float *c,
+                             int m,int n,int k) {
+    if (!q || !a || !b || !c || m<=0 || n<=0 || k<=0)
+        return cnrtErrorArgsInvalid;
+    const int64_t tiles=((int64_t(m)+matrix_m-1)/matrix_m)*((int64_t(n)+matrix_n-1)/matrix_n);
+    KERNEL<<<(cnrtDim3_t{unsigned(tiles<32?tiles:32),1,1}),cnrtFuncTypeBlock,q>>>(
+        reinterpret_cast<const Low*>(a),reinterpret_cast<const Low*>(b),c,m,n,k);
+    return cnrtGetLastError();
+}

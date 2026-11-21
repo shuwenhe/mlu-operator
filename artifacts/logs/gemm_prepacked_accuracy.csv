@@ -1,0 +1,5 @@
+dtype,m,n,k,packed_words_per_path,packing_mismatches,max_abs,max_rel,mean_abs,mismatches,nonfinite,guard_errors,status
+fp16,3,193,65,32768,0,0,0,0,0,0,0,PASS
+fp16,1,129,257,98304,0,0,0,0,0,0,0,PASS
+bf16,3,193,65,32768,0,0,0,0,0,0,0,PASS
+bf16,1,129,257,98304,0,0,0,0,0,0,0,PASS
