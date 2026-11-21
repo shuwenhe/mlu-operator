@@ -33,5 +33,17 @@ def main():
                 remaining -= len(chunk)
         print(f"{name} BF16 {shape}")
 
+    gamma = "model.layers.0.self_attn.kv_a_layernorm.weight"
+    path, offset, shape = weights[gamma]
+    if shape != [512]:
+        raise ValueError((gamma, shape))
+    with path.open("rb") as src:
+        src.seek(offset)
+        data = src.read(1024)
+    if len(data) != 1024:
+        raise EOFError(gamma)
+    (args.output / "kv_gamma.bin").write_bytes(data)
+    print(f"{gamma} BF16 {shape}")
+
 if __name__ == "__main__":
     main()

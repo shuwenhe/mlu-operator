@@ -1,0 +1,6 @@
+stage,request,position,elements,max_abs,mean_abs,mismatches
+q,0,0,6144,1.1920929e-05,5.71580699e-07,0
+projected_kv_cache,0,0,8192,7.15255737e-07,1.99308161e-08,0
+cpu_reference_mla,0,0,4096,1.90734863e-06,9.31322575e-10,0
+o,0,0,4096,7.15255737e-07,4.09066914e-08,0
+post_attention_norm,0,0,4096,6.10351562e-05,1.49011612e-08,1

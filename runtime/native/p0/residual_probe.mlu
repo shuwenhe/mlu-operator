@@ -1,0 +1,52 @@
+#include <bang.h>
+#include <cnrt.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+constexpr int lanes=128;
+__mlu_global__ void residual_probe(const bfloat16_t *x,const float *y,
+                                   bfloat16_t *direct,bfloat16_t *cast_first) {
+    __nram__ bfloat16_t xl[lanes], rounded[lanes];
+    __nram__ float xf[lanes], yf[lanes], sum[lanes];
+    __memcpy(xl,x,sizeof(xl),GDRAM2NRAM);
+    __memcpy(yf,y,sizeof(yf),GDRAM2NRAM);
+    __bang_bfloat162float(xf,xl,lanes);
+    __bang_add(sum,xf,yf,lanes);
+    __bang_float2bfloat16_rn(rounded,sum,lanes);
+    __memcpy(direct,rounded,sizeof(rounded),NRAM2GDRAM);
+    __bang_float2bfloat16_rn(rounded,yf,lanes);
+    __bang_bfloat162float(yf,rounded,lanes);
+    __bang_add(sum,xf,yf,lanes);
+    __bang_float2bfloat16_rn(rounded,sum,lanes);
+    __memcpy(cast_first,rounded,sizeof(rounded),NRAM2GDRAM);
+}
+#define CNRT(call) do { auto rc=(call); if(rc!=cnrtSuccess) { std::fprintf(stderr,"%s: %u\n",#call,unsigned(rc)); return 1; } } while(0)
+int main(int argc,char **argv) {
+    if(argc!=2 || std::strcmp(argv[1],"--authorized")!=0)return 2;
+    unsigned count=0;CNRT(cnrtGetDeviceCount(&count));if(count!=1)return 2;
+    CNRT(cnrtSetDevice(0));
+    char pci[32];CNRT(cnrtDeviceGetPCIBusId(pci,sizeof(pci),0));
+    uint16_t x[lanes]={0x3f80,0x3f80,0xbf80,0x3f00,0xbf00,0x3f81},direct[lanes],cast_first[lanes];
+    float y[lanes]={0.00390625f,0.01171875f,-0.00390625f,0.12475586f,-0.12475586f,0.0039f};
+    const uint16_t expect_direct[6]={0x3f80,0x3f82,0xbf80,0x3f20,0xbf20,0x3f81};
+    const uint16_t expect_source[6]={0x3f80,0x3f82,0xbf80,0x3f20,0xbf20,0x3f82};
+    void *dx=nullptr,*dy=nullptr,*da=nullptr,*dc=nullptr;
+    cnrtQueue_t q;CNRT(cnrtQueueCreate(&q));
+    CNRT(cnrtMalloc(&dx,sizeof(x)));CNRT(cnrtMalloc(&dy,sizeof(y)));
+    CNRT(cnrtMalloc(&da,sizeof(direct)));CNRT(cnrtMalloc(&dc,sizeof(cast_first)));
+    CNRT(cnrtMemcpy(dx,x,sizeof(x),cnrtMemcpyHostToDev));
+    CNRT(cnrtMemcpy(dy,y,sizeof(y),cnrtMemcpyHostToDev));
+    residual_probe<<<(cnrtDim3_t{1,1,1}),cnrtFuncTypeBlock,q>>>(
+        static_cast<bfloat16_t*>(dx),static_cast<float*>(dy),
+        static_cast<bfloat16_t*>(da),static_cast<bfloat16_t*>(dc));
+    CNRT(cnrtGetLastError());CNRT(cnrtQueueSync(q));
+    CNRT(cnrtMemcpy(direct,da,sizeof(direct),cnrtMemcpyDevToHost));
+    CNRT(cnrtMemcpy(cast_first,dc,sizeof(cast_first),cnrtMemcpyDevToHost));
+    CNRT(cnrtFree(dx));CNRT(cnrtFree(dy));CNRT(cnrtFree(da));CNRT(cnrtFree(dc));
+    CNRT(cnrtQueueDestroy(q));
+    std::printf("PCI %s\n",pci);
+    for(int i=0;i<6;++i) std::printf("index=%d direct=%04x cast_first=%04x\n",i,direct[i],cast_first[i]);
+    return std::memcmp(direct,expect_direct,sizeof(expect_direct))||
+           std::memcmp(cast_first,expect_source,sizeof(expect_source));
+}

@@ -1,4 +1,5 @@
 #include "packed_weight.h"
+#include "rmsnorm_native.h"
 #include "mlu_gemm_reference.h"
 #include <cnnl.h>
 #include <algorithm>
@@ -161,14 +162,95 @@ static bool test(cnrtQueue_t q,const std::string &directory,const char *label,bo
     CHECK(mlu::release_packed_weight(packed));
     return passed;
 }
+extern "C" cnrtRet_t phase5_cast_kv(cnrtQueue_t,const float *,uint16_t *,int,bool);
+
+static bool chain(cnrtQueue_t q,const std::string& dir,bool bf16) {
+    constexpr int hidden=2048,latent=512,split=576,out_size=4096;
+    auto load=[&](const char *name,int k,int n,std::vector<float>&ref) {
+        std::ifstream f(dir+"/"+name+".bin",std::ios::binary);
+        uint32_t dims[2];
+        std::vector<uint16_t> b(size_t(k)*n),raw(b.size());
+        if(!f.read(reinterpret_cast<char*>(dims),8) || dims[0]!=unsigned(n)||dims[1]!=unsigned(k) ||
+           !f.read(reinterpret_cast<char*>(raw.data()),raw.size()*2)) std::exit(2);
+        for(int j=0;j<n;++j) for(int p=0;p<k;++p) {
+            const size_t i=size_t(p)*n+j;
+            b[i]=bf16?raw[size_t(j)*k+p]:encode(decode(raw[size_t(j)*k+p],true),false);
+            ref[i]=decode(b[i],bf16);
+        }
+        return b;
+    };
+    std::vector<float> wa(size_t(hidden)*split), wb(size_t(latent)*out_size);
+    auto a=load("kv_a",hidden,split,wa),b=load("kv_b",latent,out_size,wb);
+    std::vector<uint16_t> gamma(latent);
+    std::ifstream gamma_file(dir+"/kv_gamma.bin",std::ios::binary);
+    if(!gamma_file.read(reinterpret_cast<char*>(gamma.data()),gamma.size()*2)) return false;
+    if(!bf16) for(auto& w:gamma) w=encode(decode(w,true),false);
+    const auto type=bf16?mlu::WeightType::bf16:mlu::WeightType::fp16;
+    mlu::PackedWeight *pa=nullptr,*pb=nullptr;
+    CHECK(mlu::pack_rhs_host(a.data(),hidden,split,type,pa));
+    CHECK(mlu::pack_rhs_host(b.data(),latent,out_size,type,pb));
+    Buffer dg(gamma.size()*2); dg.upload(gamma.data(),gamma.size()*2);
+    bool pass=true;
+    for(int rows:{1,32}) {
+        std::vector<uint16_t> x(size_t(rows)*hidden);
+        std::vector<float> xf(x.size()),kv(size_t(rows)*split),norm(size_t(rows)*latent),
+            output(size_t(rows)*out_size),ref(output.size());
+        for(size_t i=0;i<x.size();++i) {
+            xf[i]=(int(i%31)-15)/128.0f;
+            x[i]=encode(xf[i],bf16);
+        }
+        mlu_gemm_reference(xf.data(),wa.data(),kv.data(),rows,split,hidden,hidden,split,split);
+        for(int j=0;j<rows;++j) {
+            float sum=0;
+            for(int p=0;p<latent;++p) {
+                const float v=decode(encode(kv[size_t(j)*split+p],bf16),bf16);
+                norm[size_t(j)*latent+p]=v; sum+=v*v;
+            }
+            const float inv=1/std::sqrt(sum/latent+1e-6f);
+            for(int p=0;p<latent;++p) {
+                auto& v=norm[size_t(j)*latent+p];
+                v=decode(encode(decode(encode(v*inv,bf16),bf16)*decode(gamma[p],bf16),bf16),bf16);
+            }
+        }
+        mlu_gemm_reference(norm.data(),wb.data(),ref.data(),rows,out_size,latent,latent,out_size,out_size);
+        Buffer dx(x.size()*2),dka(kv.size()*4),dl(norm.size()*2),dn(norm.size()*2),dy(output.size()*4);
+        dx.upload(x.data(),x.size()*2);
+        CHECK(mlu::gemm_prepacked(static_cast<uint16_t*>(dx.data),*pa,static_cast<float*>(dka.data),rows,q));
+        CHECK(phase5_cast_kv(q,static_cast<float*>(dka.data),static_cast<uint16_t*>(dl.data),rows,bf16));
+        const auto rms=bf16?bang_rmsnorm_bf16:bang_rmsnorm_fp16;
+        CHECK(rms(q,static_cast<uint16_t*>(dl.data),static_cast<uint16_t*>(dg.data),
+                  static_cast<uint16_t*>(dn.data),nullptr,nullptr,rows,latent,1e-6f));
+        CHECK(mlu::gemm_prepacked(static_cast<uint16_t*>(dn.data),*pb,static_cast<float*>(dy.data),rows,q));
+        CHECK(cnrtQueueSync(q));
+        CHECK(cnrtMemcpy(output.data(),dy.data,output.size()*4,cnrtMemcpyDevToHost));
+        double maximum=0,sum=0;
+        size_t bad=0;
+        for(size_t i=0;i<output.size();++i) {
+            const double error=std::abs(double(output[i])-ref[i]);
+            maximum=std::max(maximum,error);sum+=error;
+            bad+=!std::isfinite(output[i])||error>1e-5+1e-5*std::abs(ref[i]);
+        }
+        pass&=!bad;
+        std::printf("%s,%d,%zu,%.9g,%.9g,%zu\n",bf16?"bf16":"fp16",rows,output.size(),maximum,sum/output.size(),bad);
+    }
+    CHECK(mlu::release_packed_weight(pb));CHECK(mlu::release_packed_weight(pa));
+    return pass;
+}
 int main(int argc,char **argv) {
-    if(argc!=3 || std::string(argv[1])!="--authorized") return 2;
+    if(argc!=3) return 2;
+    const std::string mode=argv[1];
+    if(mode!="--authorized" && mode!="--authorized-chain") return 2;
     unsigned count=0; CHECK(cnrtGetDeviceCount(&count)); if(count!=1) return 2;
     CHECK(cnrtSetDevice(0));
     cnrtQueue_t q; CHECK(cnrtQueueCreate(&q));
-    std::puts("projection,backend,dtype,m,n,k,mismatches,nonfinite,max_abs,max_rel,mean_abs,warmups,samples,kernel_p50_us,kernel_p95_us,io_p50_us,io_p95_us,tflops");
     bool passed=true;
+    if(mode=="--authorized-chain") {
+        std::puts("dtype,m,elements,max_abs,mean_abs,mismatches");
+        for(bool bf16:{true,false}) passed&=chain(q,argv[2],bf16);
+    } else {
+    std::puts("projection,backend,dtype,m,n,k,mismatches,nonfinite,max_abs,max_rel,mean_abs,warmups,samples,kernel_p50_us,kernel_p95_us,io_p50_us,io_p95_us,tflops");
     for(bool bf16:{true,false}) for(const char *p:{"q","kv_a","kv_b"}) passed&=test(q,argv[2],p,bf16);
+    }
     CHECK(cnrtQueueDestroy(q));
     return !passed;
 }

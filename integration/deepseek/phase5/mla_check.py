@@ -51,7 +51,9 @@ def main():
                 materialized_prob = scaled.masked_fill(causal,float("-inf")).softmax(-1)
                 if low_precision:
                     materialized_prob=materialized_prob.to(dtype).float()
-                    return (materialized_prob @ v).to(dtype).float().cpu(), None
+                    av = materialized_prob @ v
+                    stages = tuple(t.cpu() for t in (materialized, qk, scaled, materialized_prob, av))
+                    return av.to(dtype).float().cpu(), stages
                 wk,wv = weights.split(128,dim=1)
                 absorbed = ((q @ wk) @ z.T + qr @ kr.transpose(-1,-2))*scale
                 prob = absorbed.masked_fill(causal,float("-inf")).softmax(-1)
@@ -64,9 +66,17 @@ def main():
                                  float((delta/oracle.abs().clamp_min(1e-6)).max()),
                                  float(delta.mean()),int(bad.sum())))
                 return not bool(bad.any())
-            cpu, _ = attention("cpu", True)
-            device, _ = attention("mlu:0", True)
-            passed &= check("materialized_model_order",cpu,device,1e-5,1e-5)
+            cpu, cpu_stages = attention("cpu", True)
+            device, device_stages = attention("mlu:0", True)
+            valid = check("materialized_model_order",cpu,device,1e-5,1e-5)
+            passed &= valid
+            if not valid:
+                for name, ref, got in zip(("kv_projection","qk","scaled","probability","av_fp32"),
+                                          cpu_stages,device_stages):
+                    delta=(ref-got).abs()
+                    print(f"{dtype} q={query} keys={cache} stage={name} "
+                          f"max_abs={float(delta.max()):.9g} changed={int((delta!=0).sum())}",
+                          file=sys.stderr)
             cpu, _ = attention("cpu", False)
             materialized, compressed = attention("mlu:0", False)
             passed &= check("materialized_fp32",cpu,materialized,1e-5,1e-5)

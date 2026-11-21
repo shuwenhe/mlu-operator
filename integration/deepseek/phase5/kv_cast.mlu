@@ -1,0 +1,28 @@
+#include <bang.h>
+#include <cnrt.h>
+template<typename Low> __mlu_func__ void cast_rows(const float *,Low *,int);
+template<> __mlu_func__ void cast_rows(const float *input,half *output,int rows) {
+    __nram__ float wide[512]; __nram__ half low[512];
+    for(int i=taskId;i<rows;i+=taskDim){
+        __memcpy(wide,input+i*576,sizeof(wide),GDRAM2NRAM);
+        __bang_float2half_rn(low,wide,512);
+        __memcpy(output+i*512,low,sizeof(low),NRAM2GDRAM);
+    }
+}
+template<> __mlu_func__ void cast_rows(const float *input,bfloat16_t *output,int rows) {
+    __nram__ float wide[512]; __nram__ bfloat16_t low[512];
+    for(int i=taskId;i<rows;i+=taskDim){
+        __memcpy(wide,input+i*576,sizeof(wide),GDRAM2NRAM);
+        __bang_float2bfloat16_rn(low,wide,512);
+        __memcpy(output+i*512,low,sizeof(low),NRAM2GDRAM);
+    }
+}
+__mlu_global__ void cast_fp16(const float *in,half *out,int rows){cast_rows(in,out,rows);}
+__mlu_global__ void cast_bf16(const float *in,bfloat16_t *out,int rows){cast_rows(in,out,rows);}
+extern "C" cnrtRet_t phase5_cast_kv(cnrtQueue_t q,const float *in,uint16_t *out,int rows,bool bf16){
+    if(!q||!in||!out||rows<=0) return cnrtErrorArgsInvalid;
+    const cnrtDim3_t grid={static_cast<unsigned>(rows<32?rows:32),1,1};
+    if(bf16) cast_bf16<<<grid,cnrtFuncTypeBlock,q>>>(in,reinterpret_cast<bfloat16_t*>(out),rows);
+    else cast_fp16<<<grid,cnrtFuncTypeBlock,q>>>(in,reinterpret_cast<half*>(out),rows);
+    return cnrtGetLastError();
+}

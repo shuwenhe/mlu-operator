@@ -1,0 +1,54 @@
+#include <bang.h>
+#include <cnrt.h>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
+#include <vector>
+#ifdef ROPE_BF16
+using Low = bfloat16_t;
+#define ROTATE worker_rope_bf16_kernel
+#define LAUNCH worker_rope_bf16
+#define WIDEN __bang_bfloat162float
+#define NARROW __bang_float2bfloat16_rn
+#else
+using Low = half;
+#define ROTATE worker_rope_fp16_kernel
+#define LAUNCH worker_rope_fp16
+#define WIDEN __bang_half2float
+#define NARROW __bang_float2half_rn
+#endif
+constexpr int width=64, lanes=128, heads=17;
+__mlu_global__ void ROTATE(const Low *input,const Low *cos,const Low *sin,
+    const uint32_t *positions,Low *out,int seq) {
+    __nram__ Low source[width], direct[lanes], rotated[lanes], coeff[lanes];
+    __nram__ float x[lanes], y[lanes], c[lanes], first[lanes], second[lanes];
+    for(int row=taskId;row<heads*seq;row+=taskDim) {
+        const int slot=positions[row%seq];
+        __memcpy(source,input+row*width,sizeof(source),GDRAM2NRAM);
+        for(int i=0;i<width/2;++i) {
+            direct[i]=source[2*i]; direct[i+32]=source[2*i+1];
+            auto *bits=reinterpret_cast<uint16_t*>(rotated);
+            const auto *src=reinterpret_cast<const uint16_t*>(source);
+            bits[i]=src[2*i+1]^0x8000; bits[i+32]=src[2*i];
+        }
+        for(int i=width;i<lanes;++i) { direct[i]=Low{}; rotated[i]=Low{}; coeff[i]=Low{}; }
+        WIDEN(x,direct,lanes); WIDEN(y,rotated,lanes);
+        __memcpy(coeff,cos+slot*width,width*sizeof(Low),GDRAM2NRAM);
+        WIDEN(c,coeff,lanes); __bang_mul(first,x,c,lanes); NARROW(direct,first,lanes);
+        __memcpy(coeff,sin+slot*width,width*sizeof(Low),GDRAM2NRAM);
+        WIDEN(c,coeff,lanes); __bang_mul(second,y,c,lanes); NARROW(rotated,second,lanes);
+        WIDEN(first,direct,lanes); WIDEN(second,rotated,lanes);
+        __bang_add(c,first,second,lanes); NARROW(coeff,c,lanes);
+        __memcpy(out+row*width,coeff,width*sizeof(Low),NRAM2GDRAM);
+    }
+}
+
+extern "C" cnrtRet_t LAUNCH(cnrtQueue_t q,const uint16_t *x,const uint16_t *c,
+                           const uint16_t *s,const uint32_t *pos,uint16_t *out,int seq){
+    ROTATE<<<(cnrtDim3_t{32,1,1}),cnrtFuncTypeBlock,q>>>(
+        reinterpret_cast<const Low*>(x),reinterpret_cast<const Low*>(c),
+        reinterpret_cast<const Low*>(s),pos,reinterpret_cast<Low*>(out),seq);
+    return cnrtGetLastError();
+}
