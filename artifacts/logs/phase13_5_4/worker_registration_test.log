@@ -1,0 +1,54 @@
+[worker_registration_test_start] 2026-11-22T18:39:04+08:00
+INFO 11-22 18:39:19 [__init__.py:44] Available plugins for group vllm.platform_plugins:
+INFO 11-22 18:39:19 [__init__.py:46] - mlu -> vllm_mlu:register_mlu_platform
+INFO 11-22 18:39:19 [__init__.py:49] All plugins in this group will be loaded. Set `VLLM_PLUGINS` to control which plugins to load.
+INFO 11-22 18:39:19 [__init__.py:237] Platform plugin mlu is activated
+[W1122 18:39:37.582412006 version.cpp:210] Torch MLU version: 1.34.1+torch2.12.1. Compiled at: Aug 26 2026 18:49:37. CNToolkit compile version: 4.7.3. CNNL compile version: 2.2.15. CNNLExtra compile version: 2.4.1. CNCL compile version: 1.30.10. MLU-OPS compile version: 1.12.0
+[W1122 18:39:37.582440757 version.cpp:220] Current runtime lib versions: CNRT: 7.7.3, CNNL: 2.2.18, CNNLExtra: 2.5.0, CNCL: 1.30.10, MLU-OPS: 1.13.0, Driver: 6.5.52
+INFO 11-22 18:39:52 [__init__.py:44] Available plugins for group vllm.platform_plugins:
+INFO 11-22 18:39:52 [__init__.py:46] - mlu -> vllm_mlu:register_mlu_platform
+INFO 11-22 18:39:52 [__init__.py:49] All plugins in this group will be loaded. Set `VLLM_PLUGINS` to control which plugins to load.
+INFO 11-22 18:39:52 [__init__.py:237] Platform plugin mlu is activated
+INFO 11-22 18:39:53 [__init__.py:44] Available plugins for group vllm.platform_plugins:
+INFO 11-22 18:39:53 [__init__.py:46] - mlu -> vllm_mlu:register_mlu_platform
+INFO 11-22 18:39:53 [__init__.py:49] All plugins in this group will be loaded. Set `VLLM_PLUGINS` to control which plugins to load.
+INFO 11-22 18:39:53 [__init__.py:237] Platform plugin mlu is activated
+[W1122 18:40:10.453502603 version.cpp:210] Torch MLU version: 1.34.1+torch2.12.1. Compiled at: Aug 26 2026 18:49:37. CNToolkit compile version: 4.7.3. CNNL compile version: 2.2.15. CNNLExtra compile version: 2.4.1. CNCL compile version: 1.30.10. MLU-OPS compile version: 1.12.0
+[W1122 18:40:10.453542443 version.cpp:220] Current runtime lib versions: CNRT: 7.7.3, CNNL: 2.2.18, CNNLExtra: 2.5.0, CNCL: 1.30.10, MLU-OPS: 1.13.0, Driver: 6.5.52
+[W1122 18:40:12.163888375 version.cpp:210] Torch MLU version: 1.34.1+torch2.12.1. Compiled at: Aug 26 2026 18:49:37. CNToolkit compile version: 4.7.3. CNNL compile version: 2.2.15. CNNLExtra compile version: 2.4.1. CNCL compile version: 1.30.10. MLU-OPS compile version: 1.12.0
+[W1122 18:40:12.163920295 version.cpp:220] Current runtime lib versions: CNRT: 7.7.3, CNNL: 2.2.18, CNNLExtra: 2.5.0, CNCL: 1.30.10, MLU-OPS: 1.13.0, Driver: 6.5.52
+{
+  "architecture": "NeurXDeepSeekV2ForCausalLM",
+  "main_process": {
+    "registered": true,
+    "class_module": "integration.vllm_native_mlu.phase12_5.model",
+    "class_name": "NeurXDeepSeekV2ForCausalLM",
+    "supported_arch_count": 357,
+    "builtin_deepseek_present": true
+  },
+  "worker_processes": [
+    {
+      "ok": true,
+      "data": {
+        "registered": true,
+        "class_module": "integration.vllm_native_mlu.phase12_5.model",
+        "class_name": "NeurXDeepSeekV2ForCausalLM",
+        "supported_arch_count": 357,
+        "builtin_deepseek_present": true
+      }
+    },
+    {
+      "ok": true,
+      "data": {
+        "registered": true,
+        "class_module": "integration.vllm_native_mlu.phase12_5.model",
+        "class_name": "NeurXDeepSeekV2ForCausalLM",
+        "supported_arch_count": 357,
+        "builtin_deepseek_present": true
+      }
+    }
+  ],
+  "status": "PASS"
+}
+[worker_registration_test_exit] 0
+[worker_registration_test_end] 2026-11-22T18:40:19+08:00

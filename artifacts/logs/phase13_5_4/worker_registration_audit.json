@@ -1,0 +1,22 @@
+{
+  "phase": "13.5.4",
+  "objective": "TP worker architecture registration audit",
+  "runtime_image": "sha256:8e653daf38cb9cdd7a2120f9f7dcddcbe50677ac5c1c6e8d1243fa9576e26756",
+  "sources": {
+    "multiproc_executor": "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/executor/multiproc_executor.py",
+    "model_registry": "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/model_executor/models/registry.py",
+    "plugins": "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/plugins/__init__.py",
+    "neurx_registration": "/app/shuwen/mlu-operator/integration/vllm_native_mlu/phase12_5/run.py"
+  },
+  "observed_error": "Model architectures ['NeurXDeepSeekV2ForCausalLM'] are not supported for now",
+  "findings": {
+    "worker_registry_isolation": true,
+    "main_registration_auto_propagation": false,
+    "worker_allowlist_is_process_local": true,
+    "explicit_worker_pre_registration_present_before_fix": false,
+    "vendor_official_plugin_extension_available": true,
+    "vendor_plugin_extension_active_for_neurx": false
+  },
+  "root_cause": "NeurX custom architecture registration was executed only in main process and not guaranteed in worker subprocesses before worker-side architecture resolution.",
+  "recommended_minimal_fix": "Execute custom ModelRegistry registration at module import time in the NeurX registration module so spawned worker interpreters receive registration before LLM worker model resolution."
+}

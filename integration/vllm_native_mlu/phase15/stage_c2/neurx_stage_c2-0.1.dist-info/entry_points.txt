@@ -1,0 +1,2 @@
+[vllm.general_plugins]
+neurx_stage_c2 = integration.vllm_native_mlu.phase15.stage_c2.plugin:register

@@ -1,0 +1,3 @@
+STEP0_STATUS=PASS
+STEP1_TP1_STATUS=PASS
+NOTES=Earlier TP1 retries failed due library staging and container write-permission issues; evidence preserved in tp1.log.

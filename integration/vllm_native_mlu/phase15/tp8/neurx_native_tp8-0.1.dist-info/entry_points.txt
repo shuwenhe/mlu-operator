@@ -1,0 +1,2 @@
+[vllm.general_plugins]
+neurx_native_tp8 = integration.vllm_native_mlu.phase15.tp8.plugin:register

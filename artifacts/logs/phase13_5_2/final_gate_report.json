@@ -1,0 +1,16 @@
+{
+  "phase": "13.5.2",
+  "status": "IN_PROGRESS",
+  "gates": {
+    "G1_model_registry_load": "PASS",
+    "G2_tp1_regression": "PASS",
+    "G3_tp8_prefill": "NOT_RUN",
+    "G4_tp8_decode": "NOT_RUN",
+    "G5_distributed_kv_lifecycle": "NOT_RUN",
+    "G6_numerical_parity": "NOT_RUN",
+    "G7_llm_generate_tp1_tp2_tp4_tp8": "NOT_RUN",
+    "G8_performance_acceptance": "NOT_RUN",
+    "G9_reliability_1h": "NOT_RUN",
+    "G10_independent_source_review": "NOT_RUN"
+  }
+}

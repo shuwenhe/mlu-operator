@@ -1,0 +1,49 @@
+// Experimental fold for independently initialized states after FP32 CNCL SUM.
+#include <bang.h>
+#include "matrix_gemm.h"
+
+namespace {
+constexpr int lanes = 64;
+constexpr int n_tile = matrix_n;
+constexpr int k_tile = matrix_k;
+constexpr int n = 2048;
+
+__mlu_global__ void fold_gemm(const float *state, float *c, int rows) {
+    __nram__ float accum[lanes*n_tile], temp[n_tile], folded[n_tile];
+    constexpr int quant_n = n/n_tile;
+    for (int task = taskId; task < rows*quant_n; task += taskDim) {
+        const int row = task/quant_n, col_tile = task%quant_n;
+        __memcpy(accum, state + size_t(task)*lanes*n_tile, sizeof(accum), GDRAM2NRAM);
+        for (int lane = 0; lane < 8; ++lane) {
+            float *base = accum + lane * n_tile;
+            float *a1 = base + 8 * n_tile;
+            float *a2 = base + 16 * n_tile;
+            float *a3 = base + 24 * n_tile;
+            __bang_add(base, base, base + 32 * n_tile, n_tile);
+            __bang_add(a2, a2, base + 48 * n_tile, n_tile);
+            __bang_add(a3, a3, base + 56 * n_tile, n_tile);
+            __bang_add(a1, a1, base + 40 * n_tile, n_tile);
+            __bang_add(base, base, a2, n_tile);
+            __bang_add(a3, a3, a1, n_tile);
+            __bang_add(base, base, a3, n_tile);
+        }
+        for (int lane = 0; lane < 4; ++lane)
+            __bang_add(accum + lane * n_tile, accum + lane * n_tile,
+                       accum + (lane + 4) * n_tile, n_tile);
+        __bang_add(accum, accum, accum + 2 * n_tile, n_tile);
+        __bang_add(accum + n_tile, accum + n_tile, accum + 3 * n_tile, n_tile);
+        __bang_add(temp, accum, accum + n_tile, n_tile);
+        const int start = col_tile * n_tile;
+        const int width = n - start < n_tile ? n - start : n_tile;
+        for (int col = 0; col < width; ++col) folded[col] = temp[matrix_rhs_slot(0, col) / k_tile];
+        __memcpy(c + size_t(row) * n + start, folded, width * sizeof(float), NRAM2GDRAM);
+    }
+}
+}
+
+extern "C" cnrtRet_t phase1333_fold(cnrtQueue_t queue, const float *state, float *out, int rows) {
+    if (!queue || !state || !out || rows <= 0 || rows > 128)
+        return cnrtErrorArgsInvalid;
+    fold_gemm<<<(cnrtDim3_t{32, 1, 1}), cnrtFuncTypeBlock, queue>>>(state, out, rows);
+    return cnrtGetLastError();
+}

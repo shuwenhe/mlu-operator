@@ -1,0 +1,2 @@
+gate,status,reason
+tp2_real_generate,BLOCKED,TP2 blocked by current model guard in phase12_5/model.py (tensor_parallel_size == 1 restriction).

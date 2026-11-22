@@ -1,0 +1,2 @@
+gate,status,reason
+tp2_generate_path,BLOCKED,TP2 blocked by vendor multiprocess worker architecture allowlist (NeurXDeepSeekV2ForCausalLM unsupported in TP worker path).

@@ -1,0 +1,48 @@
+[timestamp] 2026-11-22T17:20:37+08:00
+[git_head] 8e8ec638862621ea76e933c246f4f246ba6fd7d8
+[git_status]
+?? artifacts/logs/phase13_3_1/verification.txt
+?? artifacts/logs/phase13_3_2/
+?? artifacts/logs/phase13_3_3/
+?? artifacts/logs/phase13_4/
+?? artifacts/logs/phase13_5/
+?? artifacts/logs/phase13_5_2/
+?? docs/PHASE13_3_1_ACCEPTANCE_PLAN.md
+?? docs/PHASE13_3_1_KV_CACHE_DESIGN.md
+?? docs/PHASE13_3_1_MLA_ARCHITECTURE_AUDIT.md
+?? docs/PHASE13_3_1_MLA_WEIGHT_MAPPING.md
+?? docs/PHASE13_3_1_TP_DESIGN.md
+?? docs/PHASE13_3_2_IMPLEMENTATION.md
+?? docs/PHASE13_3_2_NUMERICAL_ACCEPTANCE.md
+?? docs/PHASE13_3_2_PERFORMANCE_REPORT.md
+?? docs/PHASE13_3_3_IMPLEMENTATION.md
+?? docs/PHASE13_3_3_NUMERICAL_ACCEPTANCE.md
+?? docs/PHASE13_3_3_PERFORMANCE_REPORT.md
+?? docs/PHASE13_3_3_ROOT_CAUSE.md
+?? docs/PHASE13_4_ARCHITECTURE.md
+?? docs/PHASE13_4_FINAL_EVIDENCE_CLOSURE.md
+?? docs/PHASE13_5_1_INTEGRATION_PLAN.md
+?? docs/PHASE13_5_1_PRODUCTION_ARCHITECTURE_AUDIT.md
+?? docs/PHASE13_5_IMPLEMENTATION.md
+?? integration/vllm_native_mlu/phase13_3_2/
+?? integration/vllm_native_mlu/phase13_3_3/
+?? integration/vllm_native_mlu/phase13_4/
+[required_evidence]
+OK docs/PHASE13_5_1_PRODUCTION_ARCHITECTURE_AUDIT.md
+OK docs/PHASE13_5_1_INTEGRATION_PLAN.md
+OK docs/PHASE13_3_3_NUMERICAL_ACCEPTANCE.md
+OK docs/PHASE13_4_FINAL_EVIDENCE_CLOSURE.md
+OK artifacts/logs/phase13_4/corrected_replay_closure/closure3_summary.json
+OK artifacts/logs/phase12_5_4_source_hashes.txt
+OK artifacts/build/phase12_5_4/native-dump-yarn-scale/request0/prompt.ids
+OK artifacts/build/vllm_mlu/phase12_5/reference1/0-logits.bin
+OK required_fixture_dir artifacts/build/phase12_5_4/native-dump-yarn-scale
+PRESENT forbidden_fixture_dir artifacts/build/phase12_5_4/native-dump-yarn (must not be used)
+[frozen_hash_check]
+prompt.ids expected=3324366843751e3c9f80ec5783814db9043bf6b836d30694a80bfe8d47566993 actual=3324366843751e3c9f80ec5783814db9043bf6b836d30694a80bfe8d47566993
+reference1/0-logits.bin expected=3c639fc01ad2462094800251b7c39548a1a9b2c11bc2784510f6d557f41a8633 actual=3c639fc01ad2462094800251b7c39548a1a9b2c11bc2784510f6d557f41a8633
+OK ordered_O_source integration/vllm_native_mlu/phase13_3_3/probe.py
+OK closure3_summary marker
+[summary]
+STEP0_STATUS=PASS
+All required frozen evidence present and hash checks matched.

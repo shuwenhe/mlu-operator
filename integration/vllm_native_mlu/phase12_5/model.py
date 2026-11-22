@@ -39,11 +39,11 @@ class NeurXDeepSeekV2ForCausalLM(torch.nn.Module):
             (cfg.hidden_size, cfg.num_hidden_layers, cfg.q_lora_rank, cfg.kv_lora_rank)
             != (2048, 27, None, 512)
             or vllm_config.model_config.dtype != torch.bfloat16
-            or parallel.tensor_parallel_size != 1 or parallel.pipeline_parallel_size != 1
+            or parallel.tensor_parallel_size not in (1, 2) or parallel.pipeline_parallel_size != 1
             or parallel.data_parallel_size != 1 or vllm_config.cache_config.enable_prefix_caching
             or vllm_config.model_config.max_model_len > 128
         ):
-            raise ValueError("Native DeepSeek requires the audited BF16 single-card configuration")
+            raise ValueError("Native DeepSeek requires audited BF16 TP=1/2 configuration")
         root = Path(os.environ["NATIVE_DEEPSEEK_LIBRARIES"])
         self.bridge = root / "attention/libnative_mlu.so"
         self.projection = root / "projection/libprojection.so"

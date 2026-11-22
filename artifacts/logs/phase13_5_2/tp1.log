@@ -1,0 +1,459 @@
+[tp1_run_start] 2026-11-22T17:21:06+08:00
+INFO 11-22 17:21:22 [__init__.py:44] Available plugins for group vllm.platform_plugins:
+INFO 11-22 17:21:22 [__init__.py:46] - mlu -> vllm_mlu:register_mlu_platform
+INFO 11-22 17:21:22 [__init__.py:49] All plugins in this group will be loaded. Set `VLLM_PLUGINS` to control which plugins to load.
+INFO 11-22 17:21:22 [__init__.py:237] Platform plugin mlu is activated
+native architecture=NeurXDeepSeekV2ForCausalLM
+[W1122 17:21:47.689405062 version.cpp:210] Torch MLU version: 1.34.1+torch2.12.1. Compiled at: Aug 26 2026 18:49:37. CNToolkit compile version: 4.7.3. CNNL compile version: 2.2.15. CNNLExtra compile version: 2.4.1. CNCL compile version: 1.30.10. MLU-OPS compile version: 1.12.0
+[W1122 17:21:47.689440172 version.cpp:220] Current runtime lib versions: CNRT: 7.7.3, CNNL: 2.2.18, CNNLExtra: 2.5.0, CNCL: 1.30.10, MLU-OPS: 1.13.0, Driver: 6.5.52
+INFO 11-22 17:21:49 [api_utils.py:273] non-default args: {'trust_remote_code': True, 'dtype': 'bfloat16', 'max_model_len': 128, 'enable_prefix_caching': False, 'gpu_memory_utilization': 0.45, 'max_num_batched_tokens': 128, 'max_num_seqs': 2, 'disable_log_stats': True, 'hf_overrides': {'architectures': ['NeurXDeepSeekV2ForCausalLM']}, 'enforce_eager': True, 'num_gpu_blocks_override': 32, 'model': '/checkpoint'}
+WARNING 11-22 17:21:49 [arg_utils.py:1623] The global random seed is set to 0. Since VLLM_ENABLE_V1_MULTIPROCESSING is set to False, this may affect the random state of the Python process that launched vLLM.
+INFO 11-22 17:22:25 [model.py:619] Resolved architecture: NeurXDeepSeekV2ForCausalLM
+INFO 11-22 17:22:25 [model.py:1784] Using max model len 128
+INFO 11-22 17:22:25 [scheduler.py:252] Chunked prefill is enabled with max_num_batched_tokens=128.
+INFO 11-22 17:22:25 [vllm.py:1047] Asynchronous scheduling is disabled.
+WARNING 11-22 17:22:25 [vllm.py:1101] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+WARNING 11-22 17:22:25 [vllm.py:1150] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+INFO 11-22 17:22:25 [kernel.py:292] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+INFO 11-22 17:22:25 [vllm.py:1328] Cudagraph is disabled under eager mode
+INFO 11-22 17:22:25 [compilation.py:312] Enabled custom fusions: norm_quant, act_quant
+INFO 11-22 17:22:28 [core.py:77] Initializing a V1 LLM engine (v0.25.1) with config: model='/checkpoint', speculative_config=None, tokenizer='/checkpoint', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=True, dtype=torch.bfloat16, max_seq_len=128, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=True, quantization=None, quantization_config=None, enforce_eager=True, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=mlu, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False, jit_monitor_mode='warn', jit_monitor_verbose=False), seed=0, served_model_name=/checkpoint, enable_prefix_caching=False, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.NONE: 0>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['all'], 'ir_enable_torch_wrap': False, 'splitting_ops': ['vllm.rope_forward'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [128], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'combo_kernels': False, 'benchmark_combo_kernel': False}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_DECODE_ONLY: (2, 0)>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': [], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False, 'fuse_rope_kvcache_cat_mla': False, 'fuse_act_padding': False}, 'max_cudagraph_capture_size': 0, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native']), enable_flashinfer_autotune=True, enable_cutedsl_warmup=True, moe_backend='auto', linear_backend='auto')
+/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/executor/uniproc_executor.py:73: UserWarning: Failed to get the IP address, using 0.0.0.0 by default. The value can be set by the environment variable VLLM_HOST_IP or HOST_IP.
+  distributed_init_method = get_distributed_init_method(get_ip(), get_open_port())
+INFO 11-22 17:22:28 [parallel_state.py:1626] world_size=1 rank=0 local_rank=0 distributed_init_method=tcp://0.0.0.0:45925 backend=cncl
+[W1122 17:22:28.216427773 socket.cpp:207] [c10d] The hostname of the client socket cannot be retrieved. err=-3
+[rank0]:[W1122 17:22:28.218281737 ProcessGroupGloo.cpp:524] Warning: Unable to resolve hostname to a (local) address. Using the loopback address as fallback. Manually set the network interface to bind to with GLOO_SOCKET_IFNAME. (function operator())
+INFO 11-22 17:22:28 [parallel_state.py:1961] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank 0, EPLB rank N/A
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "<frozen runpy>", line 198, in _run_module_as_main
+[rank0]:   File "<frozen runpy>", line 88, in _run_code
+[rank0]:   File "/project/integration/vllm_native_mlu/phase12_5/run.py", line 54, in <module>
+[rank0]:     main()
+[rank0]:   File "/project/integration/vllm_native_mlu/phase12_5/run.py", line 24, in main
+[rank0]:     engine = LLM(model="/checkpoint", trust_remote_code=True, dtype="bfloat16",
+[rank0]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/entrypoints/llm.py", line 358, in __init__
+[rank0]:     self.llm_engine = LLMEngine.from_engine_args(
+[rank0]:                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/engine/llm_engine.py", line 179, in from_engine_args
+[rank0]:     return cls(
+[rank0]:            ^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/engine/llm_engine.py", line 105, in __init__
+[rank0]:     self.engine_core = EngineCoreClient.make_client(
+[rank0]:                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/engine/core_client.py", line 105, in make_client
+[rank0]:     return InprocClient(vllm_config, executor_class, log_stats)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/engine/core_client.py", line 287, in __init__
+[rank0]:     self.engine_core = EngineCore(*args, **kwargs)
+[rank0]:                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/vllm-v0.25.1+mlu0.16.0.pt212/vllm_mlu/v1/engine/core.py", line 86, in __init__
+[rank0]:     self.model_executor = executor_class(vllm_config)
+[rank0]:                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+[rank0]:     return func(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/executor/abstract.py", line 109, in __init__
+[rank0]:     self._init_executor()
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/executor/uniproc_executor.py", line 68, in _init_executor
+[rank0]:     self.driver_worker.load_model()
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/worker/gpu_worker.py", line 413, in load_model
+[rank0]:     self.model_runner.load_model(load_dummy_weights=load_dummy_weights)
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+[rank0]:     return func(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/vllm-v0.25.1+mlu0.16.0.pt212/vllm_mlu/v1/worker/gpu_model_runner.py", line 3378, in load_model
+[rank0]:     self.model = model_loader.load_model(
+[rank0]:                  ^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+[rank0]:     return func(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/model_executor/model_loader/base_loader.py", line 55, in load_model
+[rank0]:     model = initialize_model(
+[rank0]:             ^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+[rank0]:     return func(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/model_executor/model_loader/utils.py", line 63, in initialize_model
+[rank0]:     model = model_class(vllm_config=vllm_config, prefix=prefix)
+[rank0]:             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/project/integration/vllm_native_mlu/phase12_5/model.py", line 51, in __init__
+[rank0]:     self.ops = ctypes.CDLL(str(root / "decoder/libdecoder.so"))
+[rank0]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/usr/lib/python3.12/ctypes/__init__.py", line 379, in __init__
+[rank0]:     self._handle = _dlopen(self._name, mode)
+[rank0]:                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]: OSError: /project/artifacts/logs/phase13_5_2/native_libs/decoder/libdecoder.so: cannot open shared object file: No such file or directory
+[rank0]:[W1122 17:22:33.080078305 process_group_cncl.cpp:1315] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+[tp1_exit_codes] run=1 compare=99 token_check=99
+[tp1_run_retry2] 2026-11-22T17:23:18+08:00
+INFO 11-22 17:23:33 [__init__.py:44] Available plugins for group vllm.platform_plugins:
+INFO 11-22 17:23:33 [__init__.py:46] - mlu -> vllm_mlu:register_mlu_platform
+INFO 11-22 17:23:33 [__init__.py:49] All plugins in this group will be loaded. Set `VLLM_PLUGINS` to control which plugins to load.
+INFO 11-22 17:23:33 [__init__.py:237] Platform plugin mlu is activated
+native architecture=NeurXDeepSeekV2ForCausalLM
+[W1122 17:23:59.136069456 version.cpp:210] Torch MLU version: 1.34.1+torch2.12.1. Compiled at: Aug 26 2026 18:49:37. CNToolkit compile version: 4.7.3. CNNL compile version: 2.2.15. CNNLExtra compile version: 2.4.1. CNCL compile version: 1.30.10. MLU-OPS compile version: 1.12.0
+[W1122 17:23:59.136109036 version.cpp:220] Current runtime lib versions: CNRT: 7.7.3, CNNL: 2.2.18, CNNLExtra: 2.5.0, CNCL: 1.30.10, MLU-OPS: 1.13.0, Driver: 6.5.52
+INFO 11-22 17:24:01 [api_utils.py:273] non-default args: {'trust_remote_code': True, 'dtype': 'bfloat16', 'max_model_len': 128, 'enable_prefix_caching': False, 'gpu_memory_utilization': 0.45, 'max_num_batched_tokens': 128, 'max_num_seqs': 2, 'disable_log_stats': True, 'hf_overrides': {'architectures': ['NeurXDeepSeekV2ForCausalLM']}, 'enforce_eager': True, 'num_gpu_blocks_override': 32, 'model': '/checkpoint'}
+WARNING 11-22 17:24:01 [arg_utils.py:1623] The global random seed is set to 0. Since VLLM_ENABLE_V1_MULTIPROCESSING is set to False, this may affect the random state of the Python process that launched vLLM.
+INFO 11-22 17:24:37 [model.py:619] Resolved architecture: NeurXDeepSeekV2ForCausalLM
+INFO 11-22 17:24:37 [model.py:1784] Using max model len 128
+INFO 11-22 17:24:37 [scheduler.py:252] Chunked prefill is enabled with max_num_batched_tokens=128.
+INFO 11-22 17:24:37 [vllm.py:1047] Asynchronous scheduling is disabled.
+WARNING 11-22 17:24:37 [vllm.py:1101] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+WARNING 11-22 17:24:37 [vllm.py:1150] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+INFO 11-22 17:24:37 [kernel.py:292] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+INFO 11-22 17:24:37 [vllm.py:1328] Cudagraph is disabled under eager mode
+INFO 11-22 17:24:37 [compilation.py:312] Enabled custom fusions: norm_quant, act_quant
+INFO 11-22 17:24:39 [core.py:77] Initializing a V1 LLM engine (v0.25.1) with config: model='/checkpoint', speculative_config=None, tokenizer='/checkpoint', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=True, dtype=torch.bfloat16, max_seq_len=128, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=True, quantization=None, quantization_config=None, enforce_eager=True, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=mlu, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False, jit_monitor_mode='warn', jit_monitor_verbose=False), seed=0, served_model_name=/checkpoint, enable_prefix_caching=False, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.NONE: 0>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['all'], 'ir_enable_torch_wrap': False, 'splitting_ops': ['vllm.rope_forward'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [128], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'combo_kernels': False, 'benchmark_combo_kernel': False}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_DECODE_ONLY: (2, 0)>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': [], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False, 'fuse_rope_kvcache_cat_mla': False, 'fuse_act_padding': False}, 'max_cudagraph_capture_size': 0, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native']), enable_flashinfer_autotune=True, enable_cutedsl_warmup=True, moe_backend='auto', linear_backend='auto')
+/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/executor/uniproc_executor.py:73: UserWarning: Failed to get the IP address, using 0.0.0.0 by default. The value can be set by the environment variable VLLM_HOST_IP or HOST_IP.
+  distributed_init_method = get_distributed_init_method(get_ip(), get_open_port())
+INFO 11-22 17:24:39 [parallel_state.py:1626] world_size=1 rank=0 local_rank=0 distributed_init_method=tcp://0.0.0.0:45431 backend=cncl
+[W1122 17:24:39.907929875 socket.cpp:207] [c10d] The hostname of the client socket cannot be retrieved. err=-3
+[rank0]:[W1122 17:24:39.909819569 ProcessGroupGloo.cpp:524] Warning: Unable to resolve hostname to a (local) address. Using the loopback address as fallback. Manually set the network interface to bind to with GLOO_SOCKET_IFNAME. (function operator())
+INFO 11-22 17:24:39 [parallel_state.py:1961] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank 0, EPLB rank N/A
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "<frozen runpy>", line 198, in _run_module_as_main
+[rank0]:   File "<frozen runpy>", line 88, in _run_code
+[rank0]:   File "/project/integration/vllm_native_mlu/phase12_5/run.py", line 54, in <module>
+[rank0]:     main()
+[rank0]:   File "/project/integration/vllm_native_mlu/phase12_5/run.py", line 24, in main
+[rank0]:     engine = LLM(model="/checkpoint", trust_remote_code=True, dtype="bfloat16",
+[rank0]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/entrypoints/llm.py", line 358, in __init__
+[rank0]:     self.llm_engine = LLMEngine.from_engine_args(
+[rank0]:                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/engine/llm_engine.py", line 179, in from_engine_args
+[rank0]:     return cls(
+[rank0]:            ^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/engine/llm_engine.py", line 105, in __init__
+[rank0]:     self.engine_core = EngineCoreClient.make_client(
+[rank0]:                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/engine/core_client.py", line 105, in make_client
+[rank0]:     return InprocClient(vllm_config, executor_class, log_stats)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/engine/core_client.py", line 287, in __init__
+[rank0]:     self.engine_core = EngineCore(*args, **kwargs)
+[rank0]:                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/vllm-v0.25.1+mlu0.16.0.pt212/vllm_mlu/v1/engine/core.py", line 86, in __init__
+[rank0]:     self.model_executor = executor_class(vllm_config)
+[rank0]:                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+[rank0]:     return func(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/executor/abstract.py", line 109, in __init__
+[rank0]:     self._init_executor()
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/executor/uniproc_executor.py", line 68, in _init_executor
+[rank0]:     self.driver_worker.load_model()
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/worker/gpu_worker.py", line 413, in load_model
+[rank0]:     self.model_runner.load_model(load_dummy_weights=load_dummy_weights)
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+[rank0]:     return func(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/vllm-v0.25.1+mlu0.16.0.pt212/vllm_mlu/v1/worker/gpu_model_runner.py", line 3378, in load_model
+[rank0]:     self.model = model_loader.load_model(
+[rank0]:                  ^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+[rank0]:     return func(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/model_executor/model_loader/base_loader.py", line 55, in load_model
+[rank0]:     model = initialize_model(
+[rank0]:             ^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+[rank0]:     return func(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/model_executor/model_loader/utils.py", line 63, in initialize_model
+[rank0]:     model = model_class(vllm_config=vllm_config, prefix=prefix)
+[rank0]:             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/project/integration/vllm_native_mlu/phase12_5/model.py", line 63, in __init__
+[rank0]:     fn = getattr(lib, name)
+[rank0]:          ^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/usr/lib/python3.12/ctypes/__init__.py", line 392, in __getattr__
+[rank0]:     func = self.__getitem__(name)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/usr/lib/python3.12/ctypes/__init__.py", line 397, in __getitem__
+[rank0]:     func = self._FuncPtr((name_or_ordinal, self))
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]: AttributeError: /project/artifacts/logs/phase13_5_2/native_libs/projection/libprojection.so: undefined symbol: phase10_prepare_bf16
+[rank0]:[W1122 17:24:44.607967280 process_group_cncl.cpp:1315] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+[tp1_retry2_exit_codes] run=1 compare=99 token_check=99
+[tp1_run_retry3_projection_fix] 2026-11-22T17:25:18+08:00
+INFO 11-22 17:25:33 [__init__.py:44] Available plugins for group vllm.platform_plugins:
+INFO 11-22 17:25:33 [__init__.py:46] - mlu -> vllm_mlu:register_mlu_platform
+INFO 11-22 17:25:33 [__init__.py:49] All plugins in this group will be loaded. Set `VLLM_PLUGINS` to control which plugins to load.
+INFO 11-22 17:25:33 [__init__.py:237] Platform plugin mlu is activated
+native architecture=NeurXDeepSeekV2ForCausalLM
+[W1122 17:25:59.960080271 version.cpp:210] Torch MLU version: 1.34.1+torch2.12.1. Compiled at: Aug 26 2026 18:49:37. CNToolkit compile version: 4.7.3. CNNL compile version: 2.2.15. CNNLExtra compile version: 2.4.1. CNCL compile version: 1.30.10. MLU-OPS compile version: 1.12.0
+[W1122 17:25:59.960110731 version.cpp:220] Current runtime lib versions: CNRT: 7.7.3, CNNL: 2.2.18, CNNLExtra: 2.5.0, CNCL: 1.30.10, MLU-OPS: 1.13.0, Driver: 6.5.52
+INFO 11-22 17:26:01 [api_utils.py:273] non-default args: {'trust_remote_code': True, 'dtype': 'bfloat16', 'max_model_len': 128, 'enable_prefix_caching': False, 'gpu_memory_utilization': 0.45, 'max_num_batched_tokens': 128, 'max_num_seqs': 2, 'disable_log_stats': True, 'hf_overrides': {'architectures': ['NeurXDeepSeekV2ForCausalLM']}, 'enforce_eager': True, 'num_gpu_blocks_override': 32, 'model': '/checkpoint'}
+WARNING 11-22 17:26:01 [arg_utils.py:1623] The global random seed is set to 0. Since VLLM_ENABLE_V1_MULTIPROCESSING is set to False, this may affect the random state of the Python process that launched vLLM.
+INFO 11-22 17:26:37 [model.py:619] Resolved architecture: NeurXDeepSeekV2ForCausalLM
+INFO 11-22 17:26:37 [model.py:1784] Using max model len 128
+INFO 11-22 17:26:37 [scheduler.py:252] Chunked prefill is enabled with max_num_batched_tokens=128.
+INFO 11-22 17:26:37 [vllm.py:1047] Asynchronous scheduling is disabled.
+WARNING 11-22 17:26:37 [vllm.py:1101] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+WARNING 11-22 17:26:37 [vllm.py:1150] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+INFO 11-22 17:26:37 [kernel.py:292] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+INFO 11-22 17:26:37 [vllm.py:1328] Cudagraph is disabled under eager mode
+INFO 11-22 17:26:37 [compilation.py:312] Enabled custom fusions: norm_quant, act_quant
+INFO 11-22 17:26:39 [core.py:77] Initializing a V1 LLM engine (v0.25.1) with config: model='/checkpoint', speculative_config=None, tokenizer='/checkpoint', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=True, dtype=torch.bfloat16, max_seq_len=128, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=True, quantization=None, quantization_config=None, enforce_eager=True, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=mlu, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False, jit_monitor_mode='warn', jit_monitor_verbose=False), seed=0, served_model_name=/checkpoint, enable_prefix_caching=False, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.NONE: 0>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['all'], 'ir_enable_torch_wrap': False, 'splitting_ops': ['vllm.rope_forward'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [128], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'combo_kernels': False, 'benchmark_combo_kernel': False}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_DECODE_ONLY: (2, 0)>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': [], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False, 'fuse_rope_kvcache_cat_mla': False, 'fuse_act_padding': False}, 'max_cudagraph_capture_size': 0, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native']), enable_flashinfer_autotune=True, enable_cutedsl_warmup=True, moe_backend='auto', linear_backend='auto')
+/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/executor/uniproc_executor.py:73: UserWarning: Failed to get the IP address, using 0.0.0.0 by default. The value can be set by the environment variable VLLM_HOST_IP or HOST_IP.
+  distributed_init_method = get_distributed_init_method(get_ip(), get_open_port())
+INFO 11-22 17:26:39 [parallel_state.py:1626] world_size=1 rank=0 local_rank=0 distributed_init_method=tcp://0.0.0.0:47277 backend=cncl
+[W1122 17:26:39.870612448 socket.cpp:207] [c10d] The hostname of the client socket cannot be retrieved. err=-3
+[rank0]:[W1122 17:26:39.872404931 ProcessGroupGloo.cpp:524] Warning: Unable to resolve hostname to a (local) address. Using the loopback address as fallback. Manually set the network interface to bind to with GLOO_SOCKET_IFNAME. (function operator())
+INFO 11-22 17:26:39 [parallel_state.py:1961] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank 0, EPLB rank N/A
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "<frozen runpy>", line 198, in _run_module_as_main
+[rank0]:   File "<frozen runpy>", line 88, in _run_code
+[rank0]:   File "/project/integration/vllm_native_mlu/phase12_5/run.py", line 54, in <module>
+[rank0]:     main()
+[rank0]:   File "/project/integration/vllm_native_mlu/phase12_5/run.py", line 24, in main
+[rank0]:     engine = LLM(model="/checkpoint", trust_remote_code=True, dtype="bfloat16",
+[rank0]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/entrypoints/llm.py", line 358, in __init__
+[rank0]:     self.llm_engine = LLMEngine.from_engine_args(
+[rank0]:                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/engine/llm_engine.py", line 179, in from_engine_args
+[rank0]:     return cls(
+[rank0]:            ^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/engine/llm_engine.py", line 105, in __init__
+[rank0]:     self.engine_core = EngineCoreClient.make_client(
+[rank0]:                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/engine/core_client.py", line 105, in make_client
+[rank0]:     return InprocClient(vllm_config, executor_class, log_stats)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/engine/core_client.py", line 287, in __init__
+[rank0]:     self.engine_core = EngineCore(*args, **kwargs)
+[rank0]:                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/vllm-v0.25.1+mlu0.16.0.pt212/vllm_mlu/v1/engine/core.py", line 86, in __init__
+[rank0]:     self.model_executor = executor_class(vllm_config)
+[rank0]:                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+[rank0]:     return func(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/executor/abstract.py", line 109, in __init__
+[rank0]:     self._init_executor()
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/executor/uniproc_executor.py", line 68, in _init_executor
+[rank0]:     self.driver_worker.load_model()
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/worker/gpu_worker.py", line 413, in load_model
+[rank0]:     self.model_runner.load_model(load_dummy_weights=load_dummy_weights)
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+[rank0]:     return func(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/vllm-v0.25.1+mlu0.16.0.pt212/vllm_mlu/v1/worker/gpu_model_runner.py", line 3378, in load_model
+[rank0]:     self.model = model_loader.load_model(
+[rank0]:                  ^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+[rank0]:     return func(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/model_executor/model_loader/base_loader.py", line 55, in load_model
+[rank0]:     model = initialize_model(
+[rank0]:             ^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+[rank0]:     return func(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/model_executor/model_loader/utils.py", line 63, in initialize_model
+[rank0]:     model = model_class(vllm_config=vllm_config, prefix=prefix)
+[rank0]:             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/project/integration/vllm_native_mlu/phase12_5/model.py", line 69, in __init__
+[rank0]:     self.softmax = ctypes.CDLL(str(self.bridge)).phase9_softmax_bf16
+[rank0]:                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/usr/lib/python3.12/ctypes/__init__.py", line 392, in __getattr__
+[rank0]:     func = self.__getitem__(name)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/usr/lib/python3.12/ctypes/__init__.py", line 397, in __getitem__
+[rank0]:     func = self._FuncPtr((name_or_ordinal, self))
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]: AttributeError: /project/artifacts/logs/phase13_5_2/native_libs/attention/libnative_mlu.so: undefined symbol: phase9_softmax_bf16
+[rank0]:[W1122 17:26:44.734544823 process_group_cncl.cpp:1315] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+[tp1_retry3_exit_codes] run=1 compare=99 token_check=99
+[tp1_run_retry4_attention_fix] 2026-11-22T17:27:22+08:00
+INFO 11-22 17:27:38 [__init__.py:44] Available plugins for group vllm.platform_plugins:
+INFO 11-22 17:27:38 [__init__.py:46] - mlu -> vllm_mlu:register_mlu_platform
+INFO 11-22 17:27:38 [__init__.py:49] All plugins in this group will be loaded. Set `VLLM_PLUGINS` to control which plugins to load.
+INFO 11-22 17:27:38 [__init__.py:237] Platform plugin mlu is activated
+native architecture=NeurXDeepSeekV2ForCausalLM
+[W1122 17:28:03.450102959 version.cpp:210] Torch MLU version: 1.34.1+torch2.12.1. Compiled at: Aug 26 2026 18:49:37. CNToolkit compile version: 4.7.3. CNNL compile version: 2.2.15. CNNLExtra compile version: 2.4.1. CNCL compile version: 1.30.10. MLU-OPS compile version: 1.12.0
+[W1122 17:28:03.450138760 version.cpp:220] Current runtime lib versions: CNRT: 7.7.3, CNNL: 2.2.18, CNNLExtra: 2.5.0, CNCL: 1.30.10, MLU-OPS: 1.13.0, Driver: 6.5.52
+INFO 11-22 17:28:05 [api_utils.py:273] non-default args: {'trust_remote_code': True, 'dtype': 'bfloat16', 'max_model_len': 128, 'enable_prefix_caching': False, 'gpu_memory_utilization': 0.45, 'max_num_batched_tokens': 128, 'max_num_seqs': 2, 'disable_log_stats': True, 'hf_overrides': {'architectures': ['NeurXDeepSeekV2ForCausalLM']}, 'enforce_eager': True, 'num_gpu_blocks_override': 32, 'model': '/checkpoint'}
+WARNING 11-22 17:28:05 [arg_utils.py:1623] The global random seed is set to 0. Since VLLM_ENABLE_V1_MULTIPROCESSING is set to False, this may affect the random state of the Python process that launched vLLM.
+INFO 11-22 17:28:41 [model.py:619] Resolved architecture: NeurXDeepSeekV2ForCausalLM
+INFO 11-22 17:28:41 [model.py:1784] Using max model len 128
+INFO 11-22 17:28:41 [scheduler.py:252] Chunked prefill is enabled with max_num_batched_tokens=128.
+INFO 11-22 17:28:41 [vllm.py:1047] Asynchronous scheduling is disabled.
+WARNING 11-22 17:28:41 [vllm.py:1101] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+WARNING 11-22 17:28:41 [vllm.py:1150] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+INFO 11-22 17:28:41 [kernel.py:292] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+INFO 11-22 17:28:41 [vllm.py:1328] Cudagraph is disabled under eager mode
+INFO 11-22 17:28:41 [compilation.py:312] Enabled custom fusions: norm_quant, act_quant
+INFO 11-22 17:28:43 [core.py:77] Initializing a V1 LLM engine (v0.25.1) with config: model='/checkpoint', speculative_config=None, tokenizer='/checkpoint', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=True, dtype=torch.bfloat16, max_seq_len=128, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=True, quantization=None, quantization_config=None, enforce_eager=True, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=mlu, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False, jit_monitor_mode='warn', jit_monitor_verbose=False), seed=0, served_model_name=/checkpoint, enable_prefix_caching=False, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.NONE: 0>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['all'], 'ir_enable_torch_wrap': False, 'splitting_ops': ['vllm.rope_forward'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [128], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'combo_kernels': False, 'benchmark_combo_kernel': False}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_DECODE_ONLY: (2, 0)>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': [], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False, 'fuse_rope_kvcache_cat_mla': False, 'fuse_act_padding': False}, 'max_cudagraph_capture_size': 0, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native']), enable_flashinfer_autotune=True, enable_cutedsl_warmup=True, moe_backend='auto', linear_backend='auto')
+/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/executor/uniproc_executor.py:73: UserWarning: Failed to get the IP address, using 0.0.0.0 by default. The value can be set by the environment variable VLLM_HOST_IP or HOST_IP.
+  distributed_init_method = get_distributed_init_method(get_ip(), get_open_port())
+INFO 11-22 17:28:43 [parallel_state.py:1626] world_size=1 rank=0 local_rank=0 distributed_init_method=tcp://0.0.0.0:37753 backend=cncl
+[W1122 17:28:43.351502680 socket.cpp:207] [c10d] The hostname of the client socket cannot be retrieved. err=-3
+[rank0]:[W1122 17:28:43.353421504 ProcessGroupGloo.cpp:524] Warning: Unable to resolve hostname to a (local) address. Using the loopback address as fallback. Manually set the network interface to bind to with GLOO_SOCKET_IFNAME. (function operator())
+INFO 11-22 17:28:43 [parallel_state.py:1961] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank 0, EPLB rank N/A
+INFO 11-22 17:28:45 [weight_utils.py:849] Filesystem type for checkpoints: EXT4. Checkpoint size: 29.26 GiB. Available RAM: 1966.19 GiB.
+INFO 11-22 17:28:45 [weight_utils.py:872] Auto-prefetch is disabled because the filesystem (EXT4) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+Loading safetensors checkpoint shards:   0% Completed | 0/4 [00:00<?, ?it/s]
+Loading safetensors checkpoint shards:  50% Completed | 2/4 [00:00<00:00, 14.37it/s]
+Loading safetensors checkpoint shards: 100% Completed | 4/4 [00:00<00:00, 15.28it/s]
+Loading safetensors checkpoint shards: 100% Completed | 4/4 [00:00<00:00, 15.12it/s]
+
+INFO 11-22 17:28:45 [default_loader.py:430] Loading weights took 0.27 seconds
+INFO 11-22 17:28:48 [kv_cache_utils.py:2084] Overriding num_gpu_blocks=10280 with num_gpu_blocks_override=32
+INFO 11-22 17:28:48 [kv_cache_utils.py:2146] GPU KV cache size: 512 tokens
+INFO 11-22 17:28:48 [kv_cache_utils.py:2147] Maximum concurrency for 128 tokens per request: 4.00x
+INFO 11-22 17:28:48 [jit_monitor.py:73] Kernel JIT monitor activated; monitored JIT compilations during inference will use mode=warn.
+INFO 11-22 17:28:49 [core.py:344] init engine (profile, create kv cache, warmup model) took 2.57 s
+WARNING 11-22 17:28:49 [scheduler.py:192] Using custom scheduler class vllm_mlu.v1.core.sched.scheduler.SchedulerWithProfiler. This scheduler interface is not public and compatibility may not be maintained. If you have subclassed Scheduler instead of AsyncScheduler, you will see degraded performance due to async scheduling being disabled.
+{"backend": "vendor", "event": "schedule", "scheduled_tokens": {"0-a7135f6b": 1}, "new": [{"request": "0-a7135f6b", "blocks": [[1]]}], "cached": [], "finished": []}
+WARNING 11-22 17:28:50 [jit_monitor.py:129] Triton kernel JIT compilation during inference: _compute_slot_mapping_kernel. This causes a latency spike; consider extending warmup to cover this shape/config.
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "<frozen runpy>", line 198, in _run_module_as_main
+[rank0]:   File "<frozen runpy>", line 88, in _run_code
+[rank0]:   File "/project/integration/vllm_native_mlu/phase12_5/run.py", line 54, in <module>
+[rank0]:     main()
+[rank0]:   File "/project/integration/vllm_native_mlu/phase12_5/run.py", line 46, in main
+[rank0]:     results = engine.generate(prompts, sampling, use_tqdm=False)
+[rank0]:               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/entrypoints/llm.py", line 485, in generate
+[rank0]:     return self._run_completion(
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/entrypoints/offline_utils.py", line 349, in _run_completion
+[rank0]:     return self._run_engine(use_tqdm=use_tqdm, output_type=output_type)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/vllm-v0.25.1+mlu0.16.0.pt212/vllm_mlu/entrypoints/llm.py", line 98, in vllm__entrypoints__llm__LLM___run_engine
+[rank0]:     step_outputs = self.llm_engine.step()
+[rank0]:                    ^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/engine/llm_engine.py", line 304, in step
+[rank0]:     outputs = self.engine_core.get_output()
+[rank0]:               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/engine/core_client.py", line 290, in get_output
+[rank0]:     outputs, model_executed = self.engine_core.step_fn()
+[rank0]:                               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/vllm-v0.25.1+mlu0.16.0.pt212/vllm_mlu/v1/engine/core.py", line 246, in step
+[rank0]:     future = self.model_executor.execute_model(scheduler_output, non_block=True)
+[rank0]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/executor/uniproc_executor.py", line 120, in execute_model
+[rank0]:     output.result()
+[rank0]:   File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+[rank0]:     return self.__get_result()
+[rank0]:            ^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+[rank0]:     raise self._exception
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/executor/uniproc_executor.py", line 98, in collective_rpc
+[rank0]:     result = run_method(self.driver_worker, method, args, kwargs)
+[rank0]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/serial_utils.py", line 510, in run_method
+[rank0]:     return func(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/worker/worker_base.py", line 351, in execute_model
+[rank0]:     return self.worker.execute_model(scheduler_output)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+[rank0]:     return func(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/worker/gpu_worker.py", line 1015, in execute_model
+[rank0]:     output = self.model_runner.execute_model(
+[rank0]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+[rank0]:     return func(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/workspace/vllm-v0.25.1+mlu0.16.0.pt212/vllm_mlu/v1/worker/gpu_model_runner.py", line 2491, in execute_model
+[rank0]:     model_output = self._model_forward(
+[rank0]:                    ^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/worker/gpu_model_runner.py", line 3807, in _model_forward
+[rank0]:     return self.model(
+[rank0]:            ^^^^^^^^^^^
+[rank0]:   File "/workspace/vllm-v0.25.1+mlu0.16.0.pt212/vllm_mlu/compilation/mlu_graph.py", line 53, in __call__
+[rank0]:     return self.runnable(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/torch/venv3/pytorch_infer/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/project/integration/vllm_native_mlu/phase12_5/model.py", line 328, in forward
+[rank0]:     out = torch.cat([self._request(tokens[s.start:s.end], s, metadata, row)
+[rank0]:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/project/integration/vllm_native_mlu/phase12_5/model.py", line 208, in _request
+[rank0]:     directory.mkdir(parents=True, exist_ok=True)
+[rank0]:   File "/usr/lib/python3.12/pathlib.py", line 1313, in mkdir
+[rank0]:     os.mkdir(self, mode)
+[rank0]: PermissionError: [Errno 13] Permission denied: '/project/artifacts/logs/phase13_5_2/tp1_trace/request0'
+[rank0]:[W1122 17:28:50.914436330 process_group_cncl.cpp:1315] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+[tp1_retry4_exit_codes] run=1 compare=99 token_check=99
+[tp1_run_retry5_user_fix] 2026-11-22T17:29:09+08:00 uid=1001 gid=1001
+INFO 11-22 17:29:25 [__init__.py:44] Available plugins for group vllm.platform_plugins:
+INFO 11-22 17:29:25 [__init__.py:46] - mlu -> vllm_mlu:register_mlu_platform
+INFO 11-22 17:29:25 [__init__.py:49] All plugins in this group will be loaded. Set `VLLM_PLUGINS` to control which plugins to load.
+INFO 11-22 17:29:25 [__init__.py:237] Platform plugin mlu is activated
+native architecture=NeurXDeepSeekV2ForCausalLM
+[W1122 17:29:50.612772761 version.cpp:210] Torch MLU version: 1.34.1+torch2.12.1. Compiled at: Aug 26 2026 18:49:37. CNToolkit compile version: 4.7.3. CNNL compile version: 2.2.15. CNNLExtra compile version: 2.4.1. CNCL compile version: 1.30.10. MLU-OPS compile version: 1.12.0
+[W1122 17:29:50.612803911 version.cpp:220] Current runtime lib versions: CNRT: 7.7.3, CNNL: 2.2.18, CNNLExtra: 2.5.0, CNCL: 1.30.10, MLU-OPS: 1.13.0, Driver: 6.5.52
+INFO 11-22 17:29:52 [api_utils.py:273] non-default args: {'trust_remote_code': True, 'dtype': 'bfloat16', 'max_model_len': 128, 'enable_prefix_caching': False, 'gpu_memory_utilization': 0.45, 'max_num_batched_tokens': 128, 'max_num_seqs': 2, 'disable_log_stats': True, 'hf_overrides': {'architectures': ['NeurXDeepSeekV2ForCausalLM']}, 'enforce_eager': True, 'num_gpu_blocks_override': 32, 'model': '/checkpoint'}
+WARNING 11-22 17:29:52 [arg_utils.py:1623] The global random seed is set to 0. Since VLLM_ENABLE_V1_MULTIPROCESSING is set to False, this may affect the random state of the Python process that launched vLLM.
+INFO 11-22 17:30:30 [model.py:619] Resolved architecture: NeurXDeepSeekV2ForCausalLM
+INFO 11-22 17:30:30 [model.py:1784] Using max model len 128
+INFO 11-22 17:30:30 [scheduler.py:252] Chunked prefill is enabled with max_num_batched_tokens=128.
+INFO 11-22 17:30:30 [vllm.py:1047] Asynchronous scheduling is disabled.
+WARNING 11-22 17:30:30 [vllm.py:1101] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+WARNING 11-22 17:30:30 [vllm.py:1150] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+INFO 11-22 17:30:30 [kernel.py:292] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+INFO 11-22 17:30:30 [vllm.py:1328] Cudagraph is disabled under eager mode
+INFO 11-22 17:30:30 [compilation.py:312] Enabled custom fusions: norm_quant, act_quant
+INFO 11-22 17:30:32 [core.py:77] Initializing a V1 LLM engine (v0.25.1) with config: model='/checkpoint', speculative_config=None, tokenizer='/checkpoint', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=True, dtype=torch.bfloat16, max_seq_len=128, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=True, quantization=None, quantization_config=None, enforce_eager=True, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=mlu, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False, jit_monitor_mode='warn', jit_monitor_verbose=False), seed=0, served_model_name=/checkpoint, enable_prefix_caching=False, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.NONE: 0>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['all'], 'ir_enable_torch_wrap': False, 'splitting_ops': ['vllm.rope_forward'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [128], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'combo_kernels': False, 'benchmark_combo_kernel': False}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_DECODE_ONLY: (2, 0)>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': [], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False, 'fuse_rope_kvcache_cat_mla': False, 'fuse_act_padding': False}, 'max_cudagraph_capture_size': 0, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native']), enable_flashinfer_autotune=True, enable_cutedsl_warmup=True, moe_backend='auto', linear_backend='auto')
+/torch/venv3/pytorch_infer/lib/python3.12/site-packages/vllm/v1/executor/uniproc_executor.py:73: UserWarning: Failed to get the IP address, using 0.0.0.0 by default. The value can be set by the environment variable VLLM_HOST_IP or HOST_IP.
+  distributed_init_method = get_distributed_init_method(get_ip(), get_open_port())
+INFO 11-22 17:30:32 [parallel_state.py:1626] world_size=1 rank=0 local_rank=0 distributed_init_method=tcp://0.0.0.0:36949 backend=cncl
+[W1122 17:30:32.976684901 socket.cpp:207] [c10d] The hostname of the client socket cannot be retrieved. err=-3
+[rank0]:[W1122 17:30:32.978599096 ProcessGroupGloo.cpp:524] Warning: Unable to resolve hostname to a (local) address. Using the loopback address as fallback. Manually set the network interface to bind to with GLOO_SOCKET_IFNAME. (function operator())
+INFO 11-22 17:30:32 [parallel_state.py:1961] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank 0, EPLB rank N/A
+INFO 11-22 17:30:34 [weight_utils.py:849] Filesystem type for checkpoints: EXT4. Checkpoint size: 29.26 GiB. Available RAM: 1966.40 GiB.
+INFO 11-22 17:30:34 [weight_utils.py:872] Auto-prefetch is disabled because the filesystem (EXT4) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+Loading safetensors checkpoint shards:   0% Completed | 0/4 [00:00<?, ?it/s]
+Loading safetensors checkpoint shards:  50% Completed | 2/4 [00:00<00:00, 14.30it/s]
+Loading safetensors checkpoint shards: 100% Completed | 4/4 [00:00<00:00, 15.22it/s]
+Loading safetensors checkpoint shards: 100% Completed | 4/4 [00:00<00:00, 15.06it/s]
+
+INFO 11-22 17:30:35 [default_loader.py:430] Loading weights took 0.27 seconds
+INFO 11-22 17:30:38 [kv_cache_utils.py:2084] Overriding num_gpu_blocks=10280 with num_gpu_blocks_override=32
+INFO 11-22 17:30:38 [kv_cache_utils.py:2146] GPU KV cache size: 512 tokens
+INFO 11-22 17:30:38 [kv_cache_utils.py:2147] Maximum concurrency for 128 tokens per request: 4.00x
+INFO 11-22 17:30:38 [jit_monitor.py:73] Kernel JIT monitor activated; monitored JIT compilations during inference will use mode=warn.
+INFO 11-22 17:30:39 [core.py:344] init engine (profile, create kv cache, warmup model) took 2.65 s
+WARNING 11-22 17:30:39 [scheduler.py:192] Using custom scheduler class vllm_mlu.v1.core.sched.scheduler.SchedulerWithProfiler. This scheduler interface is not public and compatibility may not be maintained. If you have subclassed Scheduler instead of AsyncScheduler, you will see degraded performance due to async scheduling being disabled.
+{"backend": "vendor", "event": "schedule", "scheduled_tokens": {"0-9c6e7a5f": 1}, "new": [{"request": "0-9c6e7a5f", "blocks": [[1]]}], "cached": [], "finished": []}
+WARNING 11-22 17:30:40 [jit_monitor.py:129] Triton kernel JIT compilation during inference: _compute_slot_mapping_kernel. This causes a latency spike; consider extending warmup to cover this shape/config.
+{"backend": "vendor", "event": "schedule", "scheduled_tokens": {"0-9c6e7a5f": 1}, "new": [], "cached": ["0-9c6e7a5f"], "finished": []}
+{"backend": "vendor", "event": "schedule", "scheduled_tokens": {"0-9c6e7a5f": 1}, "new": [], "cached": ["0-9c6e7a5f"], "finished": []}
+{"backend": "vendor", "event": "schedule", "scheduled_tokens": {"0-9c6e7a5f": 1}, "new": [], "cached": ["0-9c6e7a5f"], "finished": []}
+{"backend": "vendor", "event": "cache_free", "request": "0-9c6e7a5f"}
+{"native_request": "0", "prompt_length": 1, "prompt_ids": [99297], "tokens": [254, 4334, 1439, 245]}
+{"backend": "vendor", "event": "schedule", "scheduled_tokens": {"1-b345d87f": 7, "2-82f12901": 17}, "new": [{"request": "1-b345d87f", "blocks": [[1]]}, {"request": "2-82f12901", "blocks": [[2, 3]]}], "cached": [], "finished": ["0-9c6e7a5f"]}
+{"backend": "vendor", "event": "schedule", "scheduled_tokens": {"1-b345d87f": 1, "2-82f12901": 1}, "new": [], "cached": ["1-b345d87f", "2-82f12901"], "finished": []}
+{"backend": "vendor", "event": "schedule", "scheduled_tokens": {"1-b345d87f": 1, "2-82f12901": 1}, "new": [], "cached": ["1-b345d87f", "2-82f12901"], "finished": []}
+{"backend": "vendor", "event": "schedule", "scheduled_tokens": {"1-b345d87f": 1, "2-82f12901": 1}, "new": [], "cached": ["1-b345d87f", "2-82f12901"], "finished": []}
+{"backend": "vendor", "event": "cache_free", "request": "1-b345d87f"}
+{"backend": "vendor", "event": "cache_free", "request": "2-82f12901"}
+{"native_request": "1", "prompt_length": 7, "prompt_ids": [99297, 2643, 254, 4345, 280, 30976, 10146], "tokens": [13, 185, 185, 1679]}
+{"native_request": "2", "prompt_length": 17, "prompt_ids": [99297, 2643, 254, 4345, 280, 30976, 10146, 13, 79352, 2643, 254, 4345, 280, 30976, 10146, 13, 79352], "tokens": [2643, 254, 4345, 280]}
+{"backend": "vendor", "event": "schedule", "scheduled_tokens": {"3-8e19c6d5": 65}, "new": [{"request": "3-8e19c6d5", "blocks": [[3, 2, 1, 4, 5]]}], "cached": [], "finished": ["1-b345d87f", "2-82f12901"]}
+{"backend": "vendor", "event": "schedule", "scheduled_tokens": {"3-8e19c6d5": 1}, "new": [], "cached": ["3-8e19c6d5"], "finished": []}
+{"backend": "vendor", "event": "schedule", "scheduled_tokens": {"3-8e19c6d5": 1}, "new": [], "cached": ["3-8e19c6d5"], "finished": []}
+{"backend": "vendor", "event": "schedule", "scheduled_tokens": {"3-8e19c6d5": 1}, "new": [], "cached": ["3-8e19c6d5"], "finished": []}
+{"backend": "vendor", "event": "cache_free", "request": "3-8e19c6d5"}
+{"native_request": "3", "prompt_length": 65, "prompt_ids": [99297, 2643, 254, 4345, 280, 30976, 10146, 13, 79352, 2643, 254, 4345, 280, 30976, 10146, 13, 79352, 2643, 254, 4345, 280, 30976, 10146, 13, 79352, 2643, 254, 4345, 280, 30976, 10146, 13, 79352, 2643, 254, 4345, 280, 30976, 10146, 13, 79352, 2643, 254, 4345, 280, 30976, 10146, 13, 79352, 2643, 254, 4345, 280, 30976, 10146, 13, 79352, 2643, 254, 4345, 280, 30976, 10146, 13, 79352], "tokens": [2643, 254, 4345, 280]}
+{"backend": "vendor", "event": "schedule", "scheduled_tokens": {"4-b0f3d0ff": 1}, "new": [{"request": "4-b0f3d0ff", "blocks": [[5]]}], "cached": [], "finished": ["3-8e19c6d5"]}
+{"backend": "vendor", "event": "schedule", "scheduled_tokens": {"4-b0f3d0ff": 1}, "new": [], "cached": ["4-b0f3d0ff"], "finished": []}
+{"backend": "vendor", "event": "schedule", "scheduled_tokens": {"4-b0f3d0ff": 1}, "new": [], "cached": ["4-b0f3d0ff"], "finished": []}
+{"backend": "vendor", "event": "schedule", "scheduled_tokens": {"4-b0f3d0ff": 1}, "new": [], "cached": ["4-b0f3d0ff"], "finished": []}
+{"backend": "vendor", "event": "cache_free", "request": "4-b0f3d0ff"}
+{"native_request": "4", "prompt_length": 1, "prompt_ids": [99297], "tokens": [254, 4334, 1439, 245]}
+[rank0]:[W1122 17:31:04.836667839 process_group_cncl.cpp:1315] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+reference tolerance failures=0
+{"tp1_token_parity_status": "PASS", "tp1_repeat_consistency": true, "latest5": [[1, [254, 4334, 1439, 245]], [7, [13, 185, 185, 1679]], [17, [2643, 254, 4345, 280]], [65, [2643, 254, 4345, 280]], [1, [254, 4334, 1439, 245]]]}
+[tp1_retry5_exit_codes] run=0 compare=0 token_check=0

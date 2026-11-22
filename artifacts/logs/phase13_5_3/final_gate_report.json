@@ -1,0 +1,33 @@
+{
+  "phase": "13.5.3",
+  "overall_status": "BLOCKED",
+  "gates": {
+    "step1_native_invocation_audit": {
+      "status": "PASS",
+      "evidence": [
+        "artifacts/logs/phase13_5_3/native_invocation_audit.json",
+        "artifacts/logs/phase13_5_3/native_invocation_audit.md"
+      ]
+    },
+    "step2_process_group_lifecycle": {
+      "status": "PASS_WITH_CONDITION",
+      "condition": "No explicit shutdown reproduces destroy_process_group warning; explicit engine_core.shutdown() provides clean teardown in normal/exception/repeated cycles.",
+      "evidence": [
+        "artifacts/logs/phase13_5_3/process_group_cleanup.log"
+      ]
+    },
+    "step3_tp1_final_guard": {
+      "status": "NOT_RUN",
+      "reason": "Invocation and lifecycle audit did not introduce production behavior changes that require TP1 rerun in this step."
+    },
+    "step4_tp2_generate_gate": {
+      "status": "BLOCKED",
+      "reason": "TP2 worker path rejects custom architecture in multiprocess executor (NeurXDeepSeekV2ForCausalLM unsupported in worker architecture allowlist).",
+      "evidence": [
+        "artifacts/logs/phase13_5_3/tp2.log",
+        "artifacts/logs/phase13_5_3/tp2_accuracy.csv"
+      ]
+    }
+  },
+  "required_next_action": "Unblock TP2 by enabling custom architecture in vendor TP worker registration path without changing TP1 behavior or frozen references."
+}

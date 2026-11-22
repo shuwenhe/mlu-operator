@@ -1,0 +1,169 @@
+{
+  "phase": "13.5.3",
+  "artifact_source": "artifacts/logs/phase13_5_2/tp1_trace",
+  "tp1_trace_summary": {
+    "requests": 5,
+    "total_steps": 20,
+    "counts": {
+      "layer": 540,
+      "key": 540,
+      "value": 540,
+      "attention": 540,
+      "embedding": 20,
+      "logits": 20
+    },
+    "expected_layer_ops_per_operator": 540
+  },
+  "shape_evidence_bytes": {
+    "request0_step0": {
+      "key_bytes": 6144,
+      "value_bytes": 4096,
+      "attention_bytes": 4096,
+      "residual_bytes": 4096
+    },
+    "request3_step0": {
+      "key_bytes": 399360,
+      "value_bytes": 266240,
+      "attention_bytes": 266240,
+      "residual_bytes": 266240
+    }
+  },
+  "libraries": {
+    "attention": {
+      "path": "/app/shuwen/mlu-operator/artifacts/logs/phase13_5_2/native_libs/attention/libnative_mlu.so",
+      "sha256": "aceef3db229bac39449be7a5a888f496ec424d23a5a9036128bb736db0133881"
+    },
+    "projection": {
+      "path": "/app/shuwen/mlu-operator/artifacts/logs/phase13_5_2/native_libs/projection/libprojection.so",
+      "sha256": "be43e340f0f05c59c946dcee9778f0b76d5e93b813917b10d45e062c9c02febd"
+    },
+    "cache": {
+      "path": "/app/shuwen/mlu-operator/artifacts/logs/phase13_5_2/native_libs/cache/libpaged_kv.so",
+      "sha256": "5c44ee0daf0974c22b22dbf7c03c86b799bb08f1bad5bb8f0d7898bf746d16fd"
+    },
+    "decoder": {
+      "path": "/app/shuwen/mlu-operator/artifacts/logs/phase13_5_2/native_libs/decoder/libdecoder.so",
+      "sha256": "c769900fdb9bcad8ee3cc32060727031a32a2cda4c393ccc9629a410d02cecda"
+    }
+  },
+  "invocation_matrix": {
+    "q_projection": {
+      "shared_library": "/app/shuwen/mlu-operator/artifacts/logs/phase13_5_2/native_libs/projection/libprojection.so",
+      "exported_symbol": "phase124_project",
+      "symbol_exported": true,
+      "invocation_count": 540,
+      "input_shape": "[rows, 2048]",
+      "output_shape": "[rows, q_proj_out] fp32 (rows<=128)",
+      "dtype": "bf16 input / fp32 out",
+      "executed_on_mlu": true,
+      "evidence": "trace+source"
+    },
+    "kv_a_projection": {
+      "shared_library": "/app/shuwen/mlu-operator/artifacts/logs/phase13_5_2/native_libs/projection/libprojection.so",
+      "exported_symbol": "phase124_project",
+      "symbol_exported": true,
+      "invocation_count": 540,
+      "input_shape": "[rows, 2048]",
+      "output_shape": "[rows, kv_a_out] fp32",
+      "dtype": "bf16 input / fp32 out",
+      "executed_on_mlu": true,
+      "evidence": "trace+source"
+    },
+    "kv_a_rmsnorm": {
+      "shared_library": "/app/shuwen/mlu-operator/artifacts/logs/phase13_5_2/native_libs/attention/libnative_mlu.so",
+      "exported_symbol": "phase82_native_bf16",
+      "symbol_exported": true,
+      "invocation_count": 540,
+      "input_shape": "[rows, 512]",
+      "output_shape": "[rows, 512]",
+      "dtype": "bf16",
+      "executed_on_mlu": true,
+      "evidence": "trace+source"
+    },
+    "kv_b_projection": {
+      "shared_library": "/app/shuwen/mlu-operator/artifacts/logs/phase13_5_2/native_libs/projection/libprojection.so",
+      "exported_symbol": "phase124_project",
+      "symbol_exported": true,
+      "invocation_count": 540,
+      "input_shape": "[rows, 512]",
+      "output_shape": "[rows, kv_b_out] fp32",
+      "dtype": "bf16 input / fp32 out",
+      "executed_on_mlu": true,
+      "evidence": "trace+source"
+    },
+    "rope": {
+      "shared_library": "/app/shuwen/mlu-operator/artifacts/logs/phase13_5_2/native_libs/decoder/libdecoder.so",
+      "exported_symbol": "worker_rope_bf16",
+      "symbol_exported": true,
+      "invocation_count": 540,
+      "input_shape": "rope=[17, rows, 64], pos=[rows]",
+      "output_shape": "rotated=[17, rows, 64]",
+      "dtype": "bf16+int32",
+      "executed_on_mlu": true,
+      "evidence": "trace+source"
+    },
+    "qk": {
+      "shared_library": "/app/shuwen/mlu-operator/artifacts/logs/phase13_5_2/native_libs/attention/libnative_mlu.so",
+      "exported_symbol": "phase9_launch_qk_bf16",
+      "symbol_exported": true,
+      "invocation_count": 540,
+      "input_shape": "q=[16,rows,192], k=[16,len,192]",
+      "output_shape": "scores=[16,rows,len]",
+      "dtype": "bf16/fp32 mixed",
+      "executed_on_mlu": true,
+      "evidence": "trace+source"
+    },
+    "softmax": {
+      "shared_library": "/app/shuwen/mlu-operator/artifacts/logs/phase13_5_2/native_libs/attention/libnative_mlu.so",
+      "exported_symbol": "phase9_softmax_bf16",
+      "symbol_exported": true,
+      "invocation_count": 540,
+      "input_shape": "scores=[16,rows,len]",
+      "output_shape": "probs=[16,rows,len]",
+      "dtype": "bf16/fp32 mixed",
+      "executed_on_mlu": true,
+      "evidence": "trace+source"
+    },
+    "av": {
+      "shared_library": "/app/shuwen/mlu-operator/artifacts/logs/phase13_5_2/native_libs/attention/libnative_mlu.so",
+      "exported_symbol": "phase9_av_bf16",
+      "symbol_exported": true,
+      "invocation_count": 540,
+      "input_shape": "probs=[16,rows,len], v=[16,len,128]",
+      "output_shape": "av=[16,rows,128]",
+      "dtype": "bf16/fp32 mixed",
+      "executed_on_mlu": true,
+      "evidence": "trace+source"
+    },
+    "ordered_o_accumulation": {
+      "shared_library": "/app/shuwen/mlu-operator/artifacts/logs/phase13_5_2/native_libs/decoder/libdecoder.so",
+      "exported_symbol": "phase10_merge",
+      "symbol_exported": true,
+      "invocation_count": 540,
+      "input_shape": "av=[16,rows,128]",
+      "output_shape": "merged=[rows,2048] then o_proj->[rows,2048]",
+      "dtype": "bf16/fp32 mixed",
+      "executed_on_mlu": true,
+      "evidence": "trace+source"
+    },
+    "residual": {
+      "shared_library": "/app/shuwen/mlu-operator/artifacts/logs/phase13_5_2/native_libs/decoder/libdecoder.so",
+      "exported_symbol": "phase11_residual",
+      "symbol_exported": true,
+      "invocation_count": 1080,
+      "input_shape": "lhs=[rows,2048], rhs=[rows,2048]",
+      "output_shape": "[rows,2048]",
+      "dtype": "bf16",
+      "executed_on_mlu": true,
+      "evidence": "source(_add called twice per layer) + trace"
+    }
+  },
+  "fallback_assessment": {
+    "silent_fallback_detected": false,
+    "basis": [
+      "All required native symbols exported by staged native libraries.",
+      "Trace contains full per-layer key/value/attention/residual artifacts across all 5 requests and 20 decode/prefill steps.",
+      "Runtime initialized on MLU platform in TP1 log (vllm_mlu plugin active, device_config=mlu)."
+    ]
+  }
+}

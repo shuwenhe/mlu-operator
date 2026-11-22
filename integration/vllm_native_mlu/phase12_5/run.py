@@ -10,12 +10,21 @@ import torch_mlu
 from vllm import LLM, ModelRegistry, SamplingParams
 
 ARCHITECTURE = "NeurXDeepSeekV2ForCausalLM"
+_REGISTERED = False
 
 
 def register():
+    global _REGISTERED
+    if _REGISTERED:
+        return
     ModelRegistry.register_model(
         ARCHITECTURE, "integration.vllm_native_mlu.phase12_5.model:NeurXDeepSeekV2ForCausalLM"
     )
+    _REGISTERED = True
+
+
+# Keep worker subprocess registries consistent under spawn-based TP execution.
+register()
 
 
 def main():
