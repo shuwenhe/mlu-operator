@@ -1,4 +1,4 @@
-# NeurX MLU Operator
+# MLU Operator
 
 Native BF16 DeepSeek-V2-Lite inference on eight Cambricon MLU590-M9 cards. The repository also contains standalone BF16 and FP16 GEMM and RMSNorm operators.
 
