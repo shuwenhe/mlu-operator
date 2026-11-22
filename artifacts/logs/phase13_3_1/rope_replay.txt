@@ -1,0 +1,4 @@
+{"rope": "/tmp/yarn", "scale": 0.11472138679292612}
+289fe8650d96b50c3a62b24c17e00ef17e1f9cbf8e3d234a8122be2b883b987a  /tmp/yarn/cos.bin
+e68a732f79efd913c8fd17ea4c7d90553cbcd4292697e6bc5df3f12c2f9792d5  /tmp/yarn/sin.bin
+/tmp/yarn/scale.txt /project/artifacts/build/phase12_5_4/rope_yarn/scale.txt differ: char 19, line 1

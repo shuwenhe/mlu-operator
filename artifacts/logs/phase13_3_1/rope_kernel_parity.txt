@@ -1,0 +1,5 @@
+{"rope": "/tmp/yarn", "scale": 0.11472138679292612}
+  File "<string>", line 1
+    import pathlib, struct, sys; a,b=[float(pathlib.Path(p).read_text()) for p in sys.argv[1:]]; assert struct.pack("<f",a)==struct.pack("<f",b); print(f"scale_regenerated={a!r} scale_frozen={b!r} kernel_fp32_bits={struct.pack(\"<f\",a).hex()}")
+                                                                                                                                                                                                                                    ^
+SyntaxError: unexpected character after line continuation character

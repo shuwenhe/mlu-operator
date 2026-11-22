@@ -1,0 +1,48 @@
+a99097b41eb975ab7af5a8ab03863bbc4aa4378807ff5858327f50bf59f89a3b  vllm_mlu/model_executor/models/deepseek_v2.py
+07e29ee048c821aae58cfd79fba8bceafb87ee954e8b9d48053f3e5b8ef179e9  vllm_mlu/v1/attention/backends/mla/tmo_flashmla.py
+71:    yarn_get_mscale,
+217:        slot_mapping = attn_metadata.slot_mapping[attn_metadata.num_decode_tokens:]
+218:        updated_slot_mapping = slot_mapping[:key_value.size(0)]
+227:                                         updated_slot_mapping.flatten())
+233:                                        updated_slot_mapping.flatten())
+387:    slot_mapping = None
+390:    slot_mapping = attn_metadata.slot_mapping[:attn_metadata.num_decode_tokens]
+391:    slot_mapping = slot_mapping.view(batch, seq)
+393:    return mlu_ops.fused_mla_kv(kv, sin, cos, position_id, gamma, key_cache, key_cache_scale, slot_mapping, cache_bs_id,
+565:            block_table=prefill_metadata.block_tables,
+677:        slot_mapping = attn_metadata.slot_mapping[attn_metadata.num_decode_tokens:]
+678:        updated_slot_mapping = slot_mapping[:key_value.size(0)]
+687:                                         updated_slot_mapping.flatten())
+693:                                        updated_slot_mapping.flatten())
+1126:class MLUDeepseekV2MLAAttention(DeepseekV2MLAAttention):
+1163:        self.num_local_heads = num_heads // tp_size
+1164:        self.scaling = self.qk_head_dim**-0.5
+1185:            self.q_a_proj = ReplicatedLinear(
+1196:            self.q_b_proj = ColumnParallelLinear(
+1216:            self.q_proj = ColumnParallelLinear(
+1224:        self.kv_a_proj_with_mqa = ReplicatedLinear(
+1235:        self.kv_b_proj = ColumnParallelLinear(
+1250:        self.o_proj = RowParallelLinear(
+1283:            mscale_all_dim = config.rope_parameters.get("mscale_all_dim", False)
+1285:            mscale = yarn_get_mscale(scaling_factor, float(mscale_all_dim))
+1286:            self.scaling = self.scaling * mscale * mscale
+1305:            self.scaling, # scale
+1320:            self.scaling, # scale
+1342:                self.qkv_a_proj = ReplicatedLinear(self.hidden_size,
+1536:                                     new_block_tables: torch.Tensor,
+1558:                                            attn_metadata.slot_mapping.flatten()[num_decode_tokens:])
+1564:                                            attn_metadata.slot_mapping.flatten()[num_decode_tokens:])
+1568:                         "new_block_tables": new_block_tables,
+1628:                new_block_tables = self.indexer.forward_sp_post_comm(
+1636:            new_block_tables = self.indexer.topk_indices_buffer[
+1652:            q_input, k_input, v_input, kv_cache, new_block_tables, new_context_lens,
+1713:                                            attn_metadata.slot_mapping.flatten()[num_decode_tokens:])
+1719:                                            attn_metadata.slot_mapping.flatten()[num_decode_tokens:])
+1721:        new_block_tables = self.indexer(
+1731:                         "new_block_tables": new_block_tables,
+1817:        new_block_tables = self.indexer(
+1827:                         "new_block_tables": new_block_tables,
+49:    get_kv_cache_configs,
+283:                available_gpu_memory = self.model_executor.determine_available_memory()
+294:        kv_cache_configs = get_kv_cache_configs(
+321:        self.model_executor.initialize_from_config(kv_cache_configs)
