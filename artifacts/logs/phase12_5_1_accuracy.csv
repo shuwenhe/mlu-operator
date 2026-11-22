@@ -1,0 +1,12 @@
+gate,status,details
+source_snapshot,PASS,Source and fixture hashes captured
+native_architecture_registration,PASS,Architecture name switched to NeurXDeepSeekV2ForCausalLM
+static_forward_context_discovery,PASS,27 native cache layers registered in static context
+worker_cache_allocation,BLOCKED,Requires live vendor worker run
+cache_reshape_hook_code_checks,PASS,Alignment/page size/storage identity/offset checks implemented
+kv_zero_copy_code_checks,PASS,Shared-storage verification enforced
+real_scheduler_metadata_dispatch,BLOCKED,Requires live vendor scheduler and model runner
+request_isolation_runtime,BLOCKED,Requires live worker scheduling run
+cache_reclamation_and_reuse,BLOCKED,Requires request lifecycle execution in pinned environment
+native_forward_interface_code_gate,PASS,Forward path consumes metadata and worker-owned cache views
+

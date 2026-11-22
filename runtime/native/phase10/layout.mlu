@@ -1,0 +1,122 @@
+#include "layout.h"
+#include <bang.h>
+
+#ifdef MLA_BF16
+using Low = bfloat16_t;
+#define PREPARE phase10_prepare_bf16
+#define APPEND phase10_append_bf16
+#define CAST phase10_cast_bf16
+#define NARROW __bang_float2bfloat16_rn
+#else
+using Low = half;
+#define PREPARE phase10_prepare_fp16
+#define APPEND phase10_append_fp16
+#define CAST phase10_cast_fp16
+#define NARROW __bang_float2half_rn
+#endif
+
+namespace {
+constexpr int heads = 16;
+constexpr int rope = 64;
+constexpr int nope = 128;
+constexpr int qwidth = 192;
+constexpr int hidden = heads * nope;
+
+__mlu_global__ void prepare(const float *q, const float *kv_a, Low *rot,
+                            uint32_t *positions, int count, int cursor) {
+    __nram__ float projected[rope];
+    __nram__ Low low[rope];
+    __nram__ uint32_t position[1];
+    for (int index = taskId; index < (heads + 1) * count; index += taskDim) {
+        const int head = index / count, token = index % count;
+        const float *source = head == heads ? kv_a + token * 576 + 512 :
+            q + (token * heads + head) * qwidth + nope;
+        __memcpy(projected, source, sizeof(projected), GDRAM2NRAM);
+        NARROW(low, projected, rope);
+        __memcpy(rot + index * rope, low, sizeof(low), NRAM2GDRAM);
+        if (head == heads) {
+            position[0] = cursor + token;
+            __memcpy(positions + token, position, sizeof(position), NRAM2GDRAM);
+        }
+    }
+}
+
+__mlu_global__ void append(const float *q, const float *kv_b, const Low *rot,
+                           Low *query, Low *key, Low *value, int count, int cursor, int capacity) {
+    __nram__ float projected[2 * nope];
+    __nram__ Low low[2 * nope];
+    __nram__ Low rotary[rope];
+    for (int index = taskId; index < heads * count; index += taskDim) {
+        const int head = index / count, token = index % count;
+        const size_t packed = size_t(token) * heads + head;
+        const size_t cached = size_t(head) * capacity + cursor + token;
+        __memcpy(projected, q + packed * qwidth, nope * sizeof(float), GDRAM2NRAM);
+        NARROW(low, projected, nope);
+        __memcpy(query + index * qwidth, low, nope * sizeof(Low), NRAM2GDRAM);
+        __memcpy(rotary, rot + index * rope, sizeof(rotary), GDRAM2NRAM);
+        __memcpy(query + index * qwidth + nope, rotary, sizeof(rotary), NRAM2GDRAM);
+        __memcpy(projected, kv_b + packed * 2 * nope, sizeof(projected), GDRAM2NRAM);
+        NARROW(low, projected, 2 * nope);
+        __memcpy(key + cached * qwidth, low, nope * sizeof(Low), NRAM2GDRAM);
+        __memcpy(value + cached * nope, low + nope, nope * sizeof(Low), NRAM2GDRAM);
+        __memcpy(rotary, rot + (heads * count + token) * rope, sizeof(rotary), GDRAM2NRAM);
+        __memcpy(key + cached * qwidth + nope, rotary, sizeof(rotary), NRAM2GDRAM);
+    }
+}
+
+__mlu_global__ void cast_hidden(const float *in, Low *out, int count) {
+    __nram__ float wide[nope];
+    __nram__ Low low[nope];
+    for (int block = taskId; block < count * hidden / nope; block += taskDim) {
+        __memcpy(wide, in + block * nope, sizeof(wide), GDRAM2NRAM);
+        NARROW(low, wide, nope);
+        __memcpy(out + block * nope, low, sizeof(low), NRAM2GDRAM);
+    }
+}
+
+#ifndef MLA_BF16
+__mlu_global__ void merge(const uint16_t *in, uint16_t *out, int count) {
+    __nram__ uint16_t low[nope];
+    for (int index = taskId; index < heads * count; index += taskDim) {
+        const int head = index / count, token = index % count;
+        __memcpy(low, in + index * nope, sizeof(low), GDRAM2NRAM);
+        __memcpy(out + (token * heads + head) * nope, low, sizeof(low), NRAM2GDRAM);
+    }
+}
+#endif
+}
+
+extern "C" cnrtRet_t PREPARE(cnrtQueue_t queue,const float *q,const float *va,
+                           uint16_t *rot,uint32_t *positions,int count,int cursor) {
+    if (!queue || !q || !va || !rot || !positions || count <= 0 || count > 128 ||
+        cursor < 0 || cursor > __INT_MAX__ - count)
+        return cnrtErrorArgsInvalid;
+    prepare<<<(cnrtDim3_t{32,1,1}),cnrtFuncTypeBlock,queue>>>(
+        q,va,reinterpret_cast<Low*>(rot),positions,count,cursor);
+    return cnrtGetLastError();
+}
+
+extern "C" cnrtRet_t APPEND(cnrtQueue_t queue,const float *q,const float *kv_b,const uint16_t *rot,
+                          uint16_t *query,uint16_t *key,uint16_t *value,int count,int cursor,int capacity) {
+    if (!queue || !q || !kv_b || !rot || !query || !key || !value ||
+        count <= 0 || count > 128 || capacity < count || cursor < 0 || cursor > capacity - count)
+        return cnrtErrorArgsInvalid;
+    append<<<(cnrtDim3_t{32,1,1}),cnrtFuncTypeBlock,queue>>>(q,kv_b,reinterpret_cast<const Low*>(rot),
+        reinterpret_cast<Low*>(query),reinterpret_cast<Low*>(key),reinterpret_cast<Low*>(value),
+        count,cursor,capacity);
+    return cnrtGetLastError();
+}
+
+extern "C" cnrtRet_t CAST(cnrtQueue_t queue,const float *in,uint16_t *out,int count) {
+    if (!queue || !in || !out || count <= 0 || count > 128) return cnrtErrorArgsInvalid;
+    cast_hidden<<<(cnrtDim3_t{32,1,1}),cnrtFuncTypeBlock,queue>>>(in,reinterpret_cast<Low*>(out),count);
+    return cnrtGetLastError();
+}
+
+#ifndef MLA_BF16
+extern "C" cnrtRet_t phase10_merge(cnrtQueue_t queue,const uint16_t *in,uint16_t *out,int count) {
+    if (!queue || !in || !out || count <= 0 || count > 128) return cnrtErrorArgsInvalid;
+    merge<<<(cnrtDim3_t{32,1,1}),cnrtFuncTypeBlock,queue>>>(in,out,count);
+    return cnrtGetLastError();
+}
+#endif

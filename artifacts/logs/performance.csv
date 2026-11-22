@@ -1,0 +1,9 @@
+scenario,run,elapsed_s,generated_tokens,throughput_tokens_s,ttft_median_s,ttft_min_s,ttft_max_s,tpot_median_s,tpot_min_s,tpot_max_s,peak_mlu_bytes,status
+c1_len1_t4,1,6.701208,4,0.596907,,,,,,,655599616,BLOCKED
+c1_len1_t4,2,0.678931,4,5.891618,,,,,,,655599616,BLOCKED
+c2_mix_1_7_t4,1,5.697339,8,1.404164,,,,,,,655599616,BLOCKED
+c2_mix_1_7_t4,2,1.887771,8,4.237802,,,,,,,655599616,BLOCKED
+c4_mix_1_7_17_65_t4,1,13.973258,16,1.145044,,,,,,,655599616,BLOCKED
+c4_mix_1_7_17_65_t4,2,11.421361,16,1.400884,,,,,,,655599616,BLOCKED
+c4_mix_1_7_17_65_t8,1,15.111483,32,2.117595,,,,,,,655599616,BLOCKED
+c4_mix_1_7_17_65_t8,2,14.086764,32,2.271636,,,,,,,655599616,BLOCKED

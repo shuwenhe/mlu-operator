@@ -1,4 +1,6 @@
 #include "dispatch.h"
+#include "phase9/av/av.h"
+#include "phase9/softmax/softmax.h"
 #include "rmsnorm_native.h"
 #include <cnnl.h>
 #include <cmath>
@@ -195,8 +197,8 @@ void Dispatch::kv_chain(size_t id,View a,Registry::Lease wa,View gamma,Registry:
  *         scaled [rows, seq, cache_len] BF16/FP16 scaled
  *         masked [rows, seq, cache_len] FP32 with -INF at masked positions
  */
-void Dispatch::attention_qk(size_t id,View q,View k,View positions,int cache_base,
-                            float scale,View qk_out,View scaled_out,View masked_out) {
+void Dispatch::attention_qk(size_t id,View q,View k,View positions,int,
+                            float,View qk_out,View scaled_out,View masked_out) {
     active(id);view(q);view(k);view(positions);view(qk_out);view(scaled_out);view(masked_out);
     distinct({q,k,positions,qk_out,scaled_out,masked_out});
     require(q.cols==192&&k.cols==192&&q.rows==k.rows&&q.type==k.type&&low(q.type)&&
@@ -211,27 +213,35 @@ void Dispatch::attention_qk(size_t id,View q,View k,View positions,int cache_bas
     require(false,"attention_qk: native MLU kernel not yet implemented");
 }
 
-/*
- * Row-wise softmax with FP32 precision.
- * Input: masked [rows, seq, cache_len] FP32 with -INF at masked positions
- * Output: maxes [rows, seq] FP32
- *         denom [rows, seq] FP32
- *         probs [rows, seq, cache_len] FP32 normalized
- *         probs_low [rows, seq, cache_len] BF16/FP16 converted
- */
+// Flattened [head, query] rows. The optional mask repeats over heads.
 void Dispatch::attention_softmax(size_t id,View masked,int cache_len,
-                                 View maxes_out,View denom_out,View probs_out,View probs_low_out) {
-    active(id);view(masked);view(maxes_out);view(denom_out);view(probs_out);view(probs_low_out);
-    distinct({masked,maxes_out,denom_out,probs_out,probs_low_out});
-    require(masked.type==Type::fp32&&
-            maxes_out.rows==masked.rows&&maxes_out.cols==masked.rows&&maxes_out.type==Type::fp32&&
-            denom_out.rows==masked.rows&&denom_out.cols==masked.rows&&denom_out.type==Type::fp32&&
-            probs_out.rows==masked.rows&&probs_out.cols==masked.cols&&probs_out.type==Type::fp32&&
-            probs_low_out.rows==masked.rows&&probs_low_out.cols==masked.cols&&low(probs_low_out.type),
-            "invalid attention softmax view");
-    // Phase 9: Placeholder for BANG C kernel call
-    // TODO: Invoke phase9_attention_softmax_bf16/fp16 kernel
-    require(false,"attention_softmax: native MLU kernel not yet implemented");
+                                 View maxes_out,View denom_out,View probs_out,View probs_low_out,
+                                 View additive_mask) {
+    active(id);
+    const auto buffers={masked,maxes_out,denom_out,probs_out,probs_low_out};
+    for (auto buffer:buffers) view(buffer);
+    distinct(buffers);
+    require(masked.type==Type::fp32&&cache_len>=0&&cache_len<=masked.cols&&
+            maxes_out.rows==masked.rows&&maxes_out.cols==1&&maxes_out.type==Type::fp32&&
+            same(denom_out,maxes_out)&&denom_out.type==Type::fp32&&
+            same(probs_out,masked)&&probs_out.type==Type::fp32&&
+            same(probs_low_out,masked)&&low(probs_low_out.type),"invalid attention softmax view");
+    if (additive_mask.data) {
+        view(additive_mask);
+        require(additive_mask.cols==masked.cols&&masked.rows%additive_mask.rows==0&&
+                additive_mask.type==probs_low_out.type,"invalid additive attention mask");
+        for (auto buffer:buffers) distinct({buffer,additive_mask});
+        slots_.retain_buffer(id,additive_mask.data);
+    }
+    for (auto buffer:buffers) slots_.retain_buffer(id,buffer.data);
+    slots_.pending(id);
+    const auto launch=probs_low_out.type==Type::bf16?phase9_softmax_bf16:phase9_softmax_fp16;
+    check(launch(worker_.queue(slots_.slot(id).queue),static_cast<const float*>(masked.data),
+                 static_cast<const uint16_t*>(additive_mask.data),
+                 additive_mask.data?additive_mask.rows:0,static_cast<float*>(maxes_out.data),
+                 static_cast<float*>(denom_out.data),static_cast<float*>(probs_out.data),
+                 static_cast<uint16_t*>(probs_low_out.data),masked.rows,masked.cols,cache_len),
+          "native attention softmax submit");
 }
 
 /*
@@ -241,17 +251,23 @@ void Dispatch::attention_softmax(size_t id,View masked,int cache_len,
  * Output: av [rows, seq, 128] FP32
  *         out [rows, seq, 128] BF16/FP16
  */
-void Dispatch::attention_av(size_t id,View probs,View v,View av_out,View out) {
-    active(id);view(probs);view(v);view(av_out);view(out);
-    distinct({probs,v,av_out,out});
-    require(low(probs.type)&&low(v.type)&&probs.type==v.type&&
-            v.cols==128&&probs.rows==v.rows&&
-            av_out.rows==probs.rows&&av_out.cols==128&&av_out.type==Type::fp32&&
-            out.rows==av_out.rows&&out.cols==av_out.cols&&out.type==probs.type,
+void Dispatch::attention_av(size_t id,View probs,View v,View av_out,View out,int sequence) {
+    active(id);
+    const auto buffers={probs,v,av_out,out};
+    for (auto buffer:buffers) view(buffer);
+    distinct(buffers);
+    require(sequence>0&&probs.rows%sequence==0,"invalid attention AV query length");
+    const auto heads=probs.rows/sequence;
+    require(low(probs.type)&&probs.type==v.type&&v.cols==128&&v.rows%heads==0&&
+            probs.cols<=v.rows/heads&&av_out.rows==probs.rows&&av_out.cols==128&&
+            av_out.type==Type::fp32&&same(out,av_out)&&out.type==probs.type,
             "invalid attention AV view");
-    // Phase 9: Placeholder for BANG C kernel call
-    // TODO: Invoke phase9_attention_av_bf16/fp16 kernel
-    require(false,"attention_av: native MLU kernel not yet implemented");
-}
+    for (auto buffer:buffers) slots_.retain_buffer(id,buffer.data);
+    slots_.pending(id);
+    const auto launch=probs.type==Type::bf16?phase9_av_bf16:phase9_av_fp16;
+    check(launch(worker_.queue(slots_.slot(id).queue),static_cast<const uint16_t*>(probs.data),
+                 static_cast<const uint16_t*>(v.data),static_cast<float*>(av_out.data),
+                 static_cast<uint16_t*>(out.data),heads,sequence,probs.cols,v.rows/heads),
+          "native attention AV submit");
 }
 }

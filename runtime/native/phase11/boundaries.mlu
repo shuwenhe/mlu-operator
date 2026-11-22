@@ -1,0 +1,67 @@
+#include <bang.h>
+#include <cnrt.h>
+#include <cstdint>
+
+namespace {
+constexpr int hidden=2048, vocab=102400, tile=64;
+__mlu_global__ void embed(const uint16_t *table,const uint32_t *ids,uint16_t *out,int rows) {
+    __nram__ uint32_t id[1];
+    __nram__ uint16_t values[hidden];
+    for (int row=taskId;row<rows;row+=taskDim) {
+        __memcpy(id,ids+row,sizeof(id),GDRAM2NRAM);
+        if (id[0]<vocab) __memcpy(values,table+size_t(id[0])*hidden,sizeof(values),GDRAM2NRAM);
+        else for (int i=0;i<hidden;++i) values[i]=0;
+        __memcpy(out+row*hidden,values,sizeof(values),NRAM2GDRAM);
+    }
+}
+
+__mlu_global__ void cast_logits(const float *input,float *output,int rows,int width,int start) {
+    __nram__ float values[tile];
+    __nram__ bfloat16_t low[tile];
+    const int blocks=width/tile;
+    for (int block=taskId;block<rows*blocks;block+=taskDim) {
+        const int row=block/blocks,col=block%blocks*tile;
+        __memcpy(values,input+block*tile,sizeof(values),GDRAM2NRAM);
+        __bang_float2bfloat16_rn(low,values,tile);
+        __bang_bfloat162float(values,low,tile);
+        __memcpy(output+row*vocab+start+col,values,sizeof(values),NRAM2GDRAM);
+    }
+}
+__mlu_global__ void greedy(const float *logits,uint32_t *tokens,int rows) {
+    __nram__ float values[tile];
+    __nram__ uint32_t selected[1];
+    for (int row=taskId;row<rows;row+=taskDim) {
+        float best=-__builtin_inff();
+        uint32_t id=0;
+        for (int offset=0;offset<vocab;offset+=tile) {
+            __memcpy(values,logits+row*vocab+offset,sizeof(values),GDRAM2NRAM);
+            for (int i=0;i<tile;++i) {
+                if (values[i]>best) {
+                    best=values[i];
+                    id=offset+i;
+                }
+            }
+        }
+        selected[0]=id;
+        __memcpy(tokens+row,selected,sizeof(selected),NRAM2GDRAM);
+    }
+}
+}
+extern "C" cnrtRet_t phase11_embedding(cnrtQueue_t q,const uint16_t *table,const uint32_t *ids,
+                                       uint16_t *out,int rows) {
+    if (!q||!table||!ids||!out||rows<=0||rows>128) return cnrtErrorArgsInvalid;
+    embed<<<(cnrtDim3_t{32,1,1}),cnrtFuncTypeBlock,q>>>(table,ids,out,rows);
+    return cnrtGetLastError();
+}
+extern "C" cnrtRet_t phase11_logits(cnrtQueue_t q,const float *input,float *output,
+                                    int rows,int width,int start) {
+    if (!q||!input||!output||rows<=0||rows>128||width<=0||width%tile||width>vocab||
+        start<0||start>vocab-width) return cnrtErrorArgsInvalid;
+    cast_logits<<<(cnrtDim3_t{32,1,1}),cnrtFuncTypeBlock,q>>>(input,output,rows,width,start);
+    return cnrtGetLastError();
+}
+extern "C" cnrtRet_t phase11_greedy(cnrtQueue_t q,const float *logits,uint32_t *tokens,int rows) {
+    if (!q||!logits||!tokens||rows<=0||rows>128) return cnrtErrorArgsInvalid;
+    greedy<<<(cnrtDim3_t{32,1,1}),cnrtFuncTypeBlock,q>>>(logits,tokens,rows);
+    return cnrtGetLastError();
+}

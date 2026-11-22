@@ -1,0 +1,45 @@
+{
+  "device": "MLU590-M9",
+  "target_reliability_seconds": 3600,
+  "configured_reliability_seconds": 3600,
+  "observed_reliability_window_seconds": 3609,
+  "sample_count": 507,
+  "total_requests": 1380,
+  "successful_requests": 1380,
+  "failed_requests": 0,
+  "generated_tokens": 7696,
+  "token_throughput_tokens_per_s": 2.1324466611249653,
+  "latency_elapsed_s": {
+    "min": 0.654895,
+    "median": 2.257194,
+    "max": 16.405591
+  },
+  "host_rss_kb": {
+    "start": 28828716,
+    "end": 28831952,
+    "min": 28828716,
+    "max": 28831952,
+    "delta_end_minus_start": 3236
+  },
+  "peak_mlu_bytes": {
+    "start": 655599616,
+    "end": 655599616,
+    "max": 655599616
+  },
+  "kv_lifecycle": {
+    "schedule_events": 2628,
+    "cache_free_events": 1406,
+    "block_reuse_observed": true
+  },
+  "native_fallback_count": 0,
+  "nan_occurrences": 0,
+  "inf_occurrences": 0,
+  "runtime_error_count": 0,
+  "gates": {
+    "concurrency": "PASS",
+    "kv_lifecycle": "BLOCKED",
+    "context_scaling": "PASS",
+    "reliability": "PASS",
+    "performance": "BLOCKED"
+  }
+}

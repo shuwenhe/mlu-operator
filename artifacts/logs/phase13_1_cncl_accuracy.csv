@@ -1,0 +1,17 @@
+rank,device,world_size,backend,communicator,dtype,all_reduce,all_gather,reduce_scatter
+0,mlu:0,8,cncl,MLUCommunicator,torch.bfloat16,PASS,PASS,PASS
+0,mlu:0,8,cncl,MLUCommunicator,torch.float32,PASS,PASS,PASS
+1,mlu:1,8,cncl,MLUCommunicator,torch.bfloat16,PASS,PASS,PASS
+1,mlu:1,8,cncl,MLUCommunicator,torch.float32,PASS,PASS,PASS
+2,mlu:2,8,cncl,MLUCommunicator,torch.bfloat16,PASS,PASS,PASS
+2,mlu:2,8,cncl,MLUCommunicator,torch.float32,PASS,PASS,PASS
+3,mlu:3,8,cncl,MLUCommunicator,torch.bfloat16,PASS,PASS,PASS
+3,mlu:3,8,cncl,MLUCommunicator,torch.float32,PASS,PASS,PASS
+4,mlu:4,8,cncl,MLUCommunicator,torch.bfloat16,PASS,PASS,PASS
+4,mlu:4,8,cncl,MLUCommunicator,torch.float32,PASS,PASS,PASS
+5,mlu:5,8,cncl,MLUCommunicator,torch.bfloat16,PASS,PASS,PASS
+5,mlu:5,8,cncl,MLUCommunicator,torch.float32,PASS,PASS,PASS
+6,mlu:6,8,cncl,MLUCommunicator,torch.bfloat16,PASS,PASS,PASS
+6,mlu:6,8,cncl,MLUCommunicator,torch.float32,PASS,PASS,PASS
+7,mlu:7,8,cncl,MLUCommunicator,torch.bfloat16,PASS,PASS,PASS
+7,mlu:7,8,cncl,MLUCommunicator,torch.float32,PASS,PASS,PASS

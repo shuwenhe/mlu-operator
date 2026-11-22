@@ -1,0 +1,103 @@
+#include <bang.h>
+#include <cnrt.h>
+#include <cstdint>
+
+namespace {
+constexpr int hidden=2048, experts=64, routes=6, tile=64;
+struct Choice { float score; uint32_t id; };
+
+__mlu_func__ void swap(Choice &a,Choice &b) {
+    const Choice temp=a;
+    a=b;
+    b=temp;
+}
+
+__mlu_func__ void top_six(Choice *choices) {
+    // The CPU reference uses the unsorted libstdc++ nth-element path.
+    // Median-of-three partitioning preserves the observed accumulation order.
+    int first=0,last=experts;
+    for (int step=0;last-first>3&&step<experts;++step) {
+        const int a=first+1,b=first+(last-first)/2,c=last-1;
+        int median;
+        if (choices[a].score>choices[b].score)
+            median=choices[b].score>choices[c].score?b:(choices[a].score>choices[c].score?c:a);
+        else
+            median=choices[a].score>choices[c].score?a:(choices[b].score>choices[c].score?c:b);
+        swap(choices[first],choices[median]);
+        const float pivot=choices[first].score;
+        int left=first+1,right=last;
+        for (;;) {
+            while (choices[left].score>pivot) ++left;
+            do { --right; } while (pivot>choices[right].score);
+            if (left>=right) break;
+            swap(choices[left],choices[right]);
+            ++left;
+        }
+        if (left<=routes-1) first=left;
+        else last=left;
+    }
+    for (int i=first+1;i<last;++i) {
+        const auto value=choices[i];
+        int j=i;
+        for (;j>first&&value.score>choices[j-1].score;--j) choices[j]=choices[j-1];
+        choices[j]=value;
+    }
+}
+
+__mlu_global__ void select_routes(const float *prob,uint32_t *ids,float *weights,int rows) {
+    __nram__ float scores[experts];
+    __nram__ uint32_t selected[routes];
+    __nram__ float selected_weights[routes];
+    Choice choices[experts];
+    for (int row=taskId;row<rows;row+=taskDim) {
+        __memcpy(scores,prob+row*experts,sizeof(scores),GDRAM2NRAM);
+        for (int i=0;i<experts;++i) choices[i]={scores[i],uint32_t(i)};
+        top_six(choices);
+        for (int i=0;i<routes;++i) {
+            selected[i]=choices[i].id;
+            selected_weights[i]=choices[i].score;
+        }
+        __memcpy(ids+row*routes,selected,sizeof(selected),NRAM2GDRAM);
+        __memcpy(weights+row*routes,selected_weights,sizeof(selected_weights),NRAM2GDRAM);
+    }
+}
+
+__mlu_global__ void combine(const bfloat16_t *routed,const float *weights,const bfloat16_t *shared,
+                            bfloat16_t *output,int rows) {
+    __nram__ float scale[routes], value[tile], product[tile], sum[tile];
+    __nram__ bfloat16_t low[tile];
+    const int tiles=hidden/tile;
+    for (int index=taskId;index<rows*tiles;index+=taskDim) {
+        const int row=index/tiles,col=index%tiles*tile;
+        __memcpy(scale,weights+row*routes,sizeof(scale),GDRAM2NRAM);
+        __bang_write_value(sum,tile,0.f);
+        for (int i=0;i<routes;++i) {
+            __memcpy(low,routed+(row*routes+i)*hidden+col,sizeof(low),GDRAM2NRAM);
+            __bang_bfloat162float(value,low,tile);
+            __bang_mul_scalar(product,value,scale[i],tile);
+            __bang_add(sum,sum,product,tile);
+        }
+        __bang_float2bfloat16_rn(low,sum,tile);
+        __bang_bfloat162float(sum,low,tile);
+        __memcpy(low,shared+row*hidden+col,sizeof(low),GDRAM2NRAM);
+        __bang_bfloat162float(value,low,tile);
+        __bang_add(sum,sum,value,tile);
+        __bang_float2bfloat16_rn(low,sum,tile);
+        __memcpy(output+row*hidden+col,low,sizeof(low),NRAM2GDRAM);
+    }
+}
+}
+
+extern "C" cnrtRet_t phase11_route(cnrtQueue_t queue,const float *p,uint32_t *ids,float *weights,int rows) {
+    if (!queue||!p||!ids||!weights||rows<=0||rows>128) return cnrtErrorArgsInvalid;
+    select_routes<<<(cnrtDim3_t{32,1,1}),cnrtFuncTypeBlock,queue>>>(p,ids,weights,rows);
+    return cnrtGetLastError();
+}
+extern "C" cnrtRet_t phase11_expert_combine(cnrtQueue_t queue,const uint16_t *outputs,const float *weights,
+    const uint16_t *shared,uint16_t *result,int rows) {
+    if (!queue||!outputs||!weights||!shared||!result||rows<=0||rows>128) return cnrtErrorArgsInvalid;
+    combine<<<(cnrtDim3_t{32,1,1}),cnrtFuncTypeBlock,queue>>>(
+        reinterpret_cast<const bfloat16_t*>(outputs),weights,reinterpret_cast<const bfloat16_t*>(shared),
+        reinterpret_cast<bfloat16_t*>(result),rows);
+    return cnrtGetLastError();
+}

@@ -1,0 +1,54 @@
+#include <bang.h>
+#include <cnrt.h>
+#include <cstdint>
+
+namespace {
+constexpr int tile=64;
+__mlu_global__ void residual(const bfloat16_t *a,const bfloat16_t *b,bfloat16_t *out,int size) {
+    __nram__ bfloat16_t low[tile];
+    __nram__ float x[tile],y[tile];
+    for (int offset=taskId*tile;offset<size;offset+=taskDim*tile) {
+        __memcpy(low,a+offset,sizeof(low),GDRAM2NRAM);
+        __bang_bfloat162float(x,low,tile);
+        __memcpy(low,b+offset,sizeof(low),GDRAM2NRAM);
+        __bang_bfloat162float(y,low,tile);
+        __bang_add(x,x,y,tile);
+        __bang_float2bfloat16_rn(low,x,tile);
+        __memcpy(out+offset,low,sizeof(low),NRAM2GDRAM);
+    }
+}
+__mlu_global__ void swiglu(const float *gate,const float *up,bfloat16_t *out,int size) {
+    __nram__ bfloat16_t low[tile];
+    __nram__ float x[tile],y[tile],exp[tile];
+    for (int offset=taskId*tile;offset<size;offset+=taskDim*tile) {
+        __memcpy(x,gate+offset,sizeof(x),GDRAM2NRAM);
+        __bang_float2bfloat16_rn(low,x,tile);
+        __bang_bfloat162float(x,low,tile);
+        for (int i=0;i<tile;++i) y[i]=-x[i];
+        __bang_exp(exp,y,tile);
+        for (int i=0;i<tile;++i) x[i]=x[i]/(1.f+exp[i]);
+        __bang_float2bfloat16_rn(low,x,tile);
+        __bang_bfloat162float(x,low,tile);
+        __memcpy(y,up+offset,sizeof(y),GDRAM2NRAM);
+        __bang_float2bfloat16_rn(low,y,tile);
+        __bang_bfloat162float(y,low,tile);
+        __bang_mul(x,x,y,tile);
+        __bang_float2bfloat16_rn(low,x,tile);
+        __memcpy(out+offset,low,sizeof(low),NRAM2GDRAM);
+    }
+}
+}
+
+extern "C" cnrtRet_t phase11_residual(cnrtQueue_t q,const uint16_t *a,const uint16_t *b,
+                                      uint16_t *out,int count) {
+    if (!q||!a||!b||!out||count<=0||count%tile) return cnrtErrorArgsInvalid;
+    residual<<<(cnrtDim3_t{32,1,1}),cnrtFuncTypeBlock,q>>>(reinterpret_cast<const bfloat16_t*>(a),
+        reinterpret_cast<const bfloat16_t*>(b),reinterpret_cast<bfloat16_t*>(out),count);
+    return cnrtGetLastError();
+}
+extern "C" cnrtRet_t phase11_swiglu(cnrtQueue_t q,const float *a,const float *b,
+                                    uint16_t *out,int count) {
+    if (!q||!a||!b||!out||count<=0||count%tile) return cnrtErrorArgsInvalid;
+    swiglu<<<(cnrtDim3_t{32,1,1}),cnrtFuncTypeBlock,q>>>(a,b,reinterpret_cast<bfloat16_t*>(out),count);
+    return cnrtGetLastError();
+}

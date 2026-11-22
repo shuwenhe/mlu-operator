@@ -1,0 +1,109 @@
+#include "attention_qk.h"
+
+#include <bang.h>
+#include <cmath>
+#include <cstddef>
+#include <limits>
+
+#ifdef QK_BF16
+using Low = bfloat16_t;
+#define QK_KERNEL phase9_qk_bf16_kernel
+#define QK_LAUNCH phase9_launch_qk_bf16
+#define WIDEN __bang_bfloat162float
+#define NARROW __bang_float2bfloat16_rn
+#else
+using Low = half;
+#define QK_KERNEL phase9_qk_fp16_kernel
+#define QK_LAUNCH phase9_launch_qk_fp16
+#define WIDEN __bang_half2float
+#define NARROW __bang_float2half_rn
+#endif
+
+constexpr uint32_t dim = 192;
+constexpr uint32_t tile = 64;
+
+__mlu_global__ void QK_KERNEL(
+    const Low *q, const Low *k, const uint32_t *positions,
+    uint32_t cache_base, float scale, float *raw, Low *scaled, float *masked,
+    uint32_t heads, uint32_t seq, uint32_t length, uint32_t capacity) {
+    __nram__ Low q_low[dim], k_low[dim], scores_low[tile];
+    __nram__ float query[dim], keys[dim], products[dim], scores[tile];
+    __nram__ uint32_t position[1];
+
+    const uint64_t tiles_per_row = (uint64_t(length) + tile - 1) / tile;
+    const uint64_t jobs = uint64_t(heads) * seq * tiles_per_row;
+    for (uint64_t job = taskId; job < jobs; job += taskDim) {
+        const uint64_t row = job / tiles_per_row;
+        const uint64_t head = row / seq;
+        const uint32_t start = (job % tiles_per_row) * tile;
+        const uint32_t count = length - start < tile ? length - start : tile;
+        const uint64_t output = row * length + start;
+
+        __memcpy(q_low, q + row * dim, sizeof(q_low), GDRAM2NRAM);
+        WIDEN(query, q_low, dim);
+        __memcpy(position, positions + row % seq, sizeof(uint32_t), GDRAM2NRAM);
+        const uint64_t causal_limit = uint64_t(cache_base) + position[0];
+
+        for (uint32_t j = 0; j < count; ++j) {
+            const uint64_t key_row = head * capacity + start + j;
+            __memcpy(k_low, k + key_row * dim, sizeof(k_low), GDRAM2NRAM);
+            WIDEN(keys, k_low, dim);
+            __bang_mul(products, query, keys, dim);
+
+            // Match the pinned PyTorch AVX2 dot's 64 lanes and horizontal fold.
+            // Preserve each FP32 addition boundary before the first low-precision cast.
+            for (uint32_t p = 0; p < 64; ++p)
+                products[p] = (products[p] + products[p + 64]) + products[p + 128];
+            for (uint32_t p = 0; p < 8; ++p)
+                products[p] = ((products[p] + products[p + 32]) +
+                               (products[p + 16] + products[p + 48])) +
+                              ((products[p + 24] + products[p + 56]) +
+                               (products[p + 8] + products[p + 40]));
+            for (uint32_t p = 0; p < 4; ++p)
+                products[p] += products[p + 4];
+            float dot = (products[0] + products[2]) + (products[1] + products[3]);
+            scores[j] = dot;
+        }
+        for (uint32_t j = count; j < tile; ++j) {
+            scores[j] = 0.0f;
+        }
+        __memcpy(raw + output, scores, count * sizeof(float), NRAM2GDRAM);
+
+        NARROW(scores_low, scores, tile);
+        WIDEN(scores, scores_low, tile);
+        for (uint32_t j = 0; j < tile; ++j) {
+            scores[j] *= scale;
+        }
+        NARROW(scores_low, scores, tile);
+        __memcpy(scaled + output, scores_low, count * sizeof(Low), NRAM2GDRAM);
+
+        WIDEN(scores, scores_low, tile);
+        for (uint32_t j = 0; j < count; ++j) {
+            if (uint64_t(start) + j > causal_limit) {
+                scores[j] = -INFINITY;
+            }
+        }
+        __memcpy(masked + output, scores, count * sizeof(float), NRAM2GDRAM);
+    }
+}
+
+extern "C" cnrtRet_t QK_LAUNCH(
+    cnrtQueue_t queue, const uint16_t *q, const uint16_t *k,
+    const uint32_t *positions, uint32_t cache_base, float scale,
+    float *raw, uint16_t *scaled, float *masked,
+    uint32_t heads, uint32_t seq, uint32_t length, uint32_t capacity) {
+    constexpr uint64_t max_elements = std::numeric_limits<size_t>::max() / sizeof(float);
+    const uint64_t rows = uint64_t(heads) * seq;
+    const uint64_t key_rows = uint64_t(heads) * capacity;
+    if (!queue || !q || !k || !positions || !raw || !scaled || !masked ||
+        !heads || !seq || !length || capacity < length || !std::isfinite(scale) ||
+        rows > max_elements / length || rows > max_elements / dim ||
+        key_rows > max_elements / dim) {
+        return cnrtErrorArgsInvalid;
+    }
+    QK_KERNEL<<<(cnrtDim3_t{32, 1, 1}), cnrtFuncTypeBlock, queue>>>(
+        reinterpret_cast<const Low *>(q), reinterpret_cast<const Low *>(k),
+        positions, cache_base, scale, raw, reinterpret_cast<Low *>(scaled),
+        masked, heads, seq, length, capacity);
+    return cnrtGetLastError();
+}

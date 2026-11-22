@@ -1,0 +1,11 @@
+gate,status,evidence
+vendor_environment,PASS,phase12_5_2_environment.log
+native_model_registration,PASS,phase12_5_2_registration_hardware.log
+model_instantiation,PASS,phase12_5_2_registration_hardware.log
+cache_discovery_27_layers,PASS,phase12_5_2_worker_cache_hardware.log
+worker_cache_allocation,PASS,phase12_5_2_worker_cache_hardware.log
+reshape_hook,PASS,phase12_5_2_worker_cache_hardware.log
+kv_zero_copy,PASS,phase12_5_2_worker_cache_hardware.log
+scheduler_metadata_dispatch,PASS,phase12_5_2_scheduler_metadata.log
+native_forward_invocation,PASS,phase12_5_2_registration_hardware.log
+hardware_acceptance,BLOCKED,fixture-regression controls from prior phase datasets were not rerun in this pass

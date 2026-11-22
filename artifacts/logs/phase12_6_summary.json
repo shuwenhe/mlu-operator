@@ -1,0 +1,13 @@
+{
+  "device": "MLU590-M9",
+  "reliability_duration_s": 3600,
+  "schedule_events": 2628,
+  "cache_free_events": 1406,
+  "gates": {
+    "concurrency": "PASS",
+    "kv_lifecycle": "BLOCKED",
+    "context_scaling": "PASS",
+    "reliability": "PASS",
+    "performance": "BLOCKED"
+  }
+}

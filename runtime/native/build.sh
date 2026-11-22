@@ -16,7 +16,13 @@ for d in fp16 bf16; do
   "$sdk/bin/cncc" --bang-mlu-arch=mtp_592 -O2 -std=c++11 -ffp-contract=off "-I$sdk/include"     "${defs[@]}" -c runtime/native/rope.mlu -o "$out/rope-$d.o"
 done
 "$sdk/bin/cncc" --bang-mlu-arch=mtp_592 -O2 -std=c++11 "-I$sdk/include"   -c integration/deepseek/phase5/kv_cast.mlu -o "$out/kv-cast.o"
-operator_libs=("$rms/fp16.o" "$rms/bf16.o" "$out/rope-fp16.o" "$out/rope-bf16.o" "$out/kv-cast.o" -lcnnl)
+bash runtime/native/phase9/softmax/build.sh "$out" --objects-only
+bash runtime/native/phase9/av/build.sh "$out" --objects-only
+operator_libs=("$out/av-fp16.o" "$out/av-bf16.o" "$out/softmax-fp16.o" "$out/softmax-bf16.o" "$rms/fp16.o" "$rms/bf16.o" "$out/rope-fp16.o" "$out/rope-bf16.o" "$out/kv-cast.o" -lcnnl)
 sources=(runtime/native/runtime.cpp runtime/native/workspace.cpp runtime/native/dispatch.cpp)
 "${cxx[@]}" -Ioperators/rmsnorm/native "${sources[@]}" runtime/native/r5_test.cpp   "${libs[@]}" "${operator_libs[@]}" -o "$out/r5_test"
 "${cxx[@]}" -Ioperators/rmsnorm/native -Icommon/reference "${sources[@]}" runtime/native/r6_test.cpp   "${libs[@]}" "${operator_libs[@]}" -o "$out/r6_test"
+"${cxx[@]}" -Ioperators/rmsnorm/native "${sources[@]}" runtime/native/phase9/softmax/dispatch_test.cpp \
+    "${libs[@]}" "${operator_libs[@]}" -o "$out/softmax_dispatch_test"
+"${cxx[@]}" -Ioperators/rmsnorm/native "${sources[@]}" runtime/native/phase9/av/dispatch_test.cpp \
+    "${libs[@]}" "${operator_libs[@]}" -o "$out/av_dispatch_test"

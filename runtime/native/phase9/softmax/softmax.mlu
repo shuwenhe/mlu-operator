@@ -1,0 +1,152 @@
+#include "softmax.h"
+#include <bang.h>
+#include <cmath>
+#include <limits>
+
+#ifdef SOFTMAX_BF16
+using Low = bfloat16_t;
+#define KERNEL softmax_bf16_kernel
+#define LAUNCH phase9_softmax_bf16
+#define WIDEN __bang_bfloat162float
+#define NARROW __bang_float2bfloat16_rn
+#else
+using Low = half;
+#define KERNEL softmax_fp16_kernel
+#define LAUNCH phase9_softmax_fp16
+#define WIDEN __bang_half2float
+#define NARROW __bang_float2half_rn
+#endif
+
+constexpr uint32_t tile = 128;
+constexpr uint32_t lanes = 8;
+
+// Compensated product and sum supply fused rounding for the small, finite
+// operands in the exponential polynomial. mtp_592 has no scalar FP32 FMA.
+__mlu_func__ float exp_mul_add(float a, float b, float c) {
+    const float product = a * b;
+    const float sa = a * 4097.f;
+    const float sb = b * 4097.f;
+    const float ah = sa - (sa - a), al = a - ah;
+    const float bh = sb - (sb - b), bl = b - bh;
+    const float product_error = (((ah * bh - product) + ah * bl) + al * bh) + al * bl;
+    const float sum = product + c;
+    const float tail = sum - product;
+    const float sum_error = (product - (sum - tail)) + (c - tail);
+    return sum + (product_error + sum_error);
+}
+
+__mlu_func__ float power_of_two(int exponent) {
+    union { uint32_t bits; float value; } result;
+    result.bits = uint32_t(exponent + 127) << 23;
+    return result.value;
+}
+
+// Range reduction and coefficient values follow SLEEF expf u10, the
+// exponential used by the pinned PyTorch AVX2 FP32 Softmax path.
+__mlu_func__ float checkpoint_exp(float x) {
+    if (x < -104.f) return 0.f;
+    const float units = x * 1.4426950408889634f;
+    int exponent = static_cast<int>(units);
+    const float fraction = float(exponent) - units;
+    if (fraction > 0.5f || (fraction == 0.5f && exponent % 2)) --exponent;
+    const float reduced_hi = exp_mul_add(float(exponent), -0.693145751953125f, x);
+    const float r = exp_mul_add(float(exponent), -1.428606765330187e-6f, reduced_hi);
+    float coefficient = 0.00019852761761285365f;
+    coefficient = exp_mul_add(coefficient, r, 0.0013930435525253415f);
+    coefficient = exp_mul_add(coefficient, r, 0.008333360776305199f);
+    coefficient = exp_mul_add(coefficient, r, 0.041666485369205475f);
+    coefficient = exp_mul_add(coefficient, r, 0.1666666716337204f);
+    coefficient = exp_mul_add(coefficient, r, 0.5f);
+    // Match the pinned AVX2 exponential's rounding before adding one.
+    const float near_one = 1.f + exp_mul_add(r * r, coefficient, r);
+    const int first = exponent / 2;
+    return (near_one * power_of_two(first)) * power_of_two(exponent - first);
+}
+
+__mlu_func__ void load_scores(float *values, float *add, Low *low,
+                            const float *input, const Low *mask,
+                            uint32_t count) {
+    __memcpy(values, input, count * sizeof(float), GDRAM2NRAM);
+    for (uint32_t i = count; i < tile; ++i) values[i] = 0.f;
+    if (mask) {
+        __memcpy(low, mask, count * sizeof(Low), GDRAM2NRAM);
+        for (uint32_t i = count; i < tile; ++i) low[i] = Low{};
+        WIDEN(add, low, tile);
+        __bang_add(values, values, add, tile);
+        NARROW(low, values, tile);
+        WIDEN(values, low, tile);
+    }
+}
+
+__mlu_global__ void KERNEL(const float *input, const Low *mask, uint32_t mask_rows,
+                          float *maxes, float *denom, float *probs, Low *output,
+                          uint32_t rows, uint32_t cols, uint32_t valid) {
+    __nram__ float values[tile], temp[tile], stats[2];
+    __nram__ Low low[tile];
+    for (uint64_t row = taskId; row < rows; row += taskDim) {
+        const uint64_t offset = row * cols;
+        const Low *row_mask = mask ? mask + (row % mask_rows) * cols : nullptr;
+        float maximum = -INFINITY;
+        bool has_nan = false;
+        for (uint64_t pos = 0; pos < valid; pos += tile) {
+            const uint32_t count = valid - pos < tile ? valid - pos : tile;
+            load_scores(values, temp, low, input + offset + pos,
+                        row_mask ? row_mask + pos : nullptr, count);
+            for (uint32_t i = 0; i < count; ++i) {
+                has_nan |= values[i] != values[i];
+                if (values[i] > maximum) maximum = values[i];
+            }
+        }
+
+        float sums[lanes] = {};
+        const bool invalid = has_nan || maximum == -INFINITY || maximum == INFINITY;
+        if (!invalid) {
+            for (uint64_t pos = 0; pos < valid; pos += tile) {
+                const uint32_t count = valid - pos < tile ? valid - pos : tile;
+                load_scores(values, temp, low, input + offset + pos,
+                            row_mask ? row_mask + pos : nullptr, count);
+                for (uint32_t i = 0; i < count; ++i) {
+                    temp[i] = checkpoint_exp(values[i] - maximum);
+                    sums[i % lanes] += temp[i];
+                }
+                __memcpy(probs + offset + pos, temp, count * sizeof(float), NRAM2GDRAM);
+            }
+        }
+        float total = 0.f;
+        if (cols < lanes) {
+            for (uint32_t i = 0; i < cols; ++i) total += sums[i];
+        } else {
+            for (uint32_t i = 0; i < 4; ++i) sums[i] += sums[i + 4];
+            total = (sums[0] + sums[2]) + (sums[1] + sums[3]);
+        }
+        stats[0] = has_nan ? NAN : maximum;
+        stats[1] = invalid ? NAN : total;
+        __memcpy(maxes + row, stats, sizeof(float), NRAM2GDRAM);
+        __memcpy(denom + row, stats + 1, sizeof(float), NRAM2GDRAM);
+        const float inverse = invalid ? NAN : 1.f / total;
+        for (uint64_t pos = 0; pos < cols; pos += tile) {
+            const uint32_t count = cols - pos < tile ? cols - pos : tile;
+            const uint32_t loaded = pos < valid ? (valid - pos < count ? valid - pos : count) : 0;
+            if (!invalid && loaded)
+                __memcpy(values, probs + offset + pos, loaded * sizeof(float), GDRAM2NRAM);
+            for (uint32_t i = 0; i < tile; ++i)
+                values[i] = invalid ? NAN : (i < loaded ? values[i] * inverse : 0.f);
+            NARROW(low, values, tile);
+            __memcpy(probs + offset + pos, values, count * sizeof(float), NRAM2GDRAM);
+            __memcpy(output + offset + pos, low, count * sizeof(Low), NRAM2GDRAM);
+        }
+    }
+}
+
+extern "C" cnrtRet_t LAUNCH(cnrtQueue_t queue, const float *scores,
+    const uint16_t *mask, uint32_t mask_rows, float *maxes, float *denom, float *probs,
+    uint16_t *low, uint32_t rows, uint32_t cols, uint32_t valid) {
+    if (!queue || !scores || !maxes || !denom || !probs || !low || !rows || !cols ||
+        valid > cols || bool(mask) != bool(mask_rows) || (mask_rows && rows % mask_rows) ||
+        uint64_t(rows) * cols > std::numeric_limits<size_t>::max() / sizeof(float))
+        return cnrtErrorArgsInvalid;
+    KERNEL<<<(cnrtDim3_t{32, 1, 1}), cnrtFuncTypeBlock, queue>>>(
+        scores, reinterpret_cast<const Low *>(mask), mask_rows, maxes, denom, probs,
+        reinterpret_cast<Low *>(low), rows, cols, valid);
+    return cnrtGetLastError();
+}

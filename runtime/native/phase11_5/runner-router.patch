@@ -1,0 +1,74 @@
+--- model_run.cpp
++++ model_run.cpp
+@@ -9,6 +9,7 @@
+ #include <sys/resource.h>
+ 
+ extern "C" {
++cnrtRet_t phase115_router_bf16(cnrtQueue_t,const uint16_t*,const uint16_t*,float*,int);
+ cnrtRet_t phase8_candidate_bf16(cnrtQueue_t,const uint16_t*,const uint16_t*,float*,int,int,int);
+ cnrtRet_t phase82_native_bf16(cnrtQueue_t,const uint16_t*,const uint16_t*,uint16_t*,float*,uint16_t*,int,int,float);
+ cnrtRet_t phase11_residual(cnrtQueue_t,const uint16_t*,const uint16_t*,uint16_t*,int);
+@@ -106,6 +107,7 @@
+     std::string prefix;
+     const uint16_t *input_gamma;
+     const uint16_t *post_gamma;
++    const uint16_t *router;
+     std::unique_ptr<MlaRequest> attention;
+ };
+ 
+@@ -138,7 +140,7 @@
+                     input_gamma,post_gamma};
+                 dense_=std::make_unique<DenseDecoder>(worker,memory,qid,std::move(dense),chunk,capacity);
+             } else {
+-                layers_.push_back({name,input_gamma,post_gamma,std::make_unique<MlaRequest>(
++                layers_.push_back({name,input_gamma,post_gamma,weights.resident(name+"mlp.gate.weight",experts,hidden),std::make_unique<MlaRequest>(
+                     worker,memory,qid,std::move(attention),chunk,capacity,true)});
+             }
+         }
+@@ -181,7 +183,7 @@
+             check(phase11_residual(queue_,x,request.tensors().output,residual_,count*hidden),
+                   "model attention residual");
+             normalize(residual_,layer.post_gamma,post_,count);
+-            run_moe(layer.prefix+"mlp.",count);
++            run_moe(layer.prefix+"mlp.",layer.router,count);
+             check(phase11_residual(queue_,residual_,mixed_,result_,count*hidden),"model MoE residual");
+             request.complete();
+             x=result_;
+@@ -254,8 +256,8 @@
+         project(*weights_.packed(name+".down_proj.weight"),mid_,down_,count);
+         check(phase10_cast_bf16(queue_,down_,out,count),"model expert cast");
+     }
+-    void run_moe(const std::string &prefix,int count) {
+-        project(*weights_.packed(prefix+"gate.weight"),post_,router_logits_,count);
++    void run_moe(const std::string &prefix,const uint16_t *router,int count) {
++        check(phase115_router_bf16(queue_,post_,router,router_logits_,count),"model checkpoint router GEMM");
+         check(phase9_softmax_bf16(queue_,router_logits_,nullptr,0,router_max_,router_denom_,
+                 router_probs_,router_low_,count,experts,experts),"model router FP32 Softmax");
+         check(phase11_route(queue_,router_probs_,route_ids_,row_weights_,count),"model route top-six");
+--- moe_test.cpp
++++ moe_test.cpp
+@@ -6,6 +6,7 @@
+ #include <iostream>
+ 
+ extern "C" {
++cnrtRet_t phase115_router_bf16(cnrtQueue_t,const uint16_t*,const uint16_t*,float*,int);
+ cnrtRet_t phase8_candidate_bf16(cnrtQueue_t,const uint16_t*,const uint16_t*,float*,int,int,int);
+ cnrtRet_t phase10_cast_bf16(cnrtQueue_t,const float*,uint16_t*,int);
+ cnrtRet_t phase11_swiglu(cnrtQueue_t,const float*,const float*,uint16_t*,int);
+@@ -129,7 +130,15 @@
+         const auto file=[&](std::string name){return fixture+'/'+name+'-'+std::to_string(rows)+".bin";};
+         auto host=read<uint16_t>(file("input"),rows*hidden);
+         check(cnrtMemcpy(input,host.data(),host.size()*2,cnrtMemcpyHostToDev),"upload matched MoE input");
+-        gemm("gate.weight",input,logits,rows);
++        const auto &item=metadata.at("gate.weight");
++        std::ifstream shard(checkpoint+'/'+item.file,std::ios::binary);
++        std::vector<uint16_t> raw(n_experts*hidden);
++        require(item.n==n_experts&&item.k==hidden&&bool(shard.seekg(item.offset))&&
++                bool(shard.read(reinterpret_cast<char*>(raw.data()),raw.size()*2)),
++                "invalid checkpoint router weights");
++        auto *device=low(raw.size());
++        check(cnrtMemcpy(device,raw.data(),raw.size()*2,cnrtMemcpyHostToDev),"upload raw router");
++        check(phase115_router_bf16(queue,input,device,logits,rows),"checkpoint router GEMM");
+         check(phase9_softmax_bf16(queue,logits,nullptr,0,max,denom,prob,unused_probs,
+                                   rows,n_experts,n_experts),"router FP32 Softmax");
+         check(phase11_route(queue,prob,route_ids,route_weights,rows),"router top-six");

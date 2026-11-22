@@ -1,0 +1,61 @@
+#include <bang.h>
+#include <cnrt.h>
+#include <stdint.h>
+
+namespace {
+constexpr int hidden = 2048, experts = 64, panel = 112;
+
+__mlu_global__ void checkpoint_router(const bfloat16_t *input, const bfloat16_t *weights,
+                                      float *outputs, int rows) {
+    __nram__ bfloat16_t x[hidden], w[hidden];
+    __nram__ float xf[hidden], wf[hidden], product[hidden];
+    // The pinned two-thread reference splits the row range in half after 64 rows.
+    const int split = rows > 64 ? rows / 2 : rows;
+    const int first_gemm_rows = split / 4 * 4;
+    const int second_gemm_end = split + (rows - split) / 4 * 4;
+    for (int dot = taskId; dot < rows * experts; dot += taskDim) {
+        const int row = dot / experts;
+        __memcpy(x, input + row * hidden, sizeof(x), GDRAM2NRAM);
+        __memcpy(w, weights + dot % experts * hidden, sizeof(w), GDRAM2NRAM);
+        __bang_bfloat162float(xf, x, hidden);
+        __bang_bfloat162float(wf, w, hidden);
+        __bang_mul(product, xf, wf, hidden);
+        float score = 0.0f;
+        const bool panel_order = rows >= 8 &&
+            (row < first_gemm_rows || (row >= split && row < second_gemm_end));
+        if (panel_order) {
+            // Pinned oneMKL accumulates the short tail panel before the full panels.
+            for (int k = hidden / panel * panel; k < hidden; ++k) score += product[k];
+            for (int start = 0; start + panel <= hidden; start += panel) {
+                float partial = 0.0f;
+                for (int k = start; k < start + panel; ++k) partial += product[k];
+                score += partial;
+            }
+        } else {
+            // Small multi-row SGEMM starts at feature 0. GEMV starts with a scalar prefix.
+            float lane0 = 0.0f, lane1 = 0.0f, lane2 = 0.0f, lane3 = 0.0f;
+            const bool prefix = rows == 1 || rows >= 8;
+            if (prefix) lane0 = ((product[0] + product[1]) + product[2]) + product[3];
+            for (int k = prefix ? 4 : 0; k < hidden; k += 4) {
+                lane0 += product[k];
+                lane1 += product[k + 1];
+                lane2 += product[k + 2];
+                lane3 += product[k + 3];
+            }
+            score = (lane0 + lane2) + (lane1 + lane3);
+        }
+        outputs[dot] = score;
+    }
+}
+}
+
+extern "C" cnrtRet_t phase115_router_bf16(cnrtQueue_t queue, const uint16_t *input,
+    const uint16_t *weights, float *output, int rows) {
+    if (!queue || !input || !weights || !output || rows <= 0 || rows > 128)
+        return cnrtErrorArgsInvalid;
+    const cnrtDim3_t grid = {32, 1, 1};
+    checkpoint_router<<<grid, cnrtFuncTypeBlock, queue>>>(
+        reinterpret_cast<const bfloat16_t *>(input), reinterpret_cast<const bfloat16_t *>(weights),
+        output, rows);
+    return cnrtGetLastError();
+}

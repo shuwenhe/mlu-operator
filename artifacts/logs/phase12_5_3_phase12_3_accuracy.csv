@@ -1,0 +1,9 @@
+case,backend,elements,bit_mismatches,tolerance_mismatches,max_abs,max_rel,max_ulp,nan,inf,unexpected_nonfinite
+bf16-request0-step0,native_fixture,14336,0,0,0.0,0.0,0,0,0,0
+bf16-request1-step0,native_fixture,14336,0,0,0.0,0.0,0,0,0,0
+bf16-request0-step1,native_fixture,2048,0,0,0.0,0.0,0,0,0,0
+bf16-request1-step1,native_fixture,2048,0,0,0.0,0.0,0,0,0,0
+fp16-request0-step0,native_fixture,14336,0,0,0.0,0.0,0,0,0,0
+fp16-request1-step0,native_fixture,14336,0,0,0.0,0.0,0,0,0,0
+fp16-request0-step1,native_fixture,2048,0,0,0.0,0.0,0,0,0,0
+fp16-request1-step1,native_fixture,2048,0,0,0.0,0.0,0,0,0,0

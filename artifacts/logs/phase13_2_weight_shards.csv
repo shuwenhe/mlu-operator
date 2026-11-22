@@ -1,0 +1,123 @@
+kind,mode,case,dtype,tp,rank,device,parameter,original_shape,local_shape,axis,spans,sha256
+weight,checkpoint,deepseek,torch.bfloat16,8,1,mlu:1,model.layers.0.self_attn.q_proj.weight,"[3072, 2048]","[384, 2048]",0,"[[384, 384]]",ddfac0c8fdbcb93fdcf1b10fbff0f150311ca4e181b629044a60a778e25c3bbd
+weight,checkpoint,deepseek,torch.bfloat16,8,0,mlu:0,model.layers.0.self_attn.q_proj.weight,"[3072, 2048]","[384, 2048]",0,"[[0, 384]]",3309826ce95498ca320818f89fdfe1e6fdaeb1f141bdc52b933f39d43daaabcb
+weight,checkpoint,deepseek,torch.bfloat16,8,3,mlu:3,model.layers.0.self_attn.q_proj.weight,"[3072, 2048]","[384, 2048]",0,"[[1152, 384]]",58b83bc27d90f9ffd35b506a34e334704b541ebf3b13bca9d52f75543ab4a6da
+weight,checkpoint,deepseek,torch.bfloat16,8,5,mlu:5,model.layers.0.self_attn.q_proj.weight,"[3072, 2048]","[384, 2048]",0,"[[1920, 384]]",0dd374c34c0835b048807574375cc796ed16ab4b94fc459ab43238af562bcf76
+weight,checkpoint,deepseek,torch.bfloat16,8,2,mlu:2,model.layers.0.self_attn.q_proj.weight,"[3072, 2048]","[384, 2048]",0,"[[768, 384]]",2e2051f650759b28c68440dc89aa03a4ec1a70a90a586691987ff31c88553c4a
+weight,checkpoint,deepseek,torch.bfloat16,8,7,mlu:7,model.layers.0.self_attn.q_proj.weight,"[3072, 2048]","[384, 2048]",0,"[[2688, 384]]",9b7473c0997d85cb0d23dbe8ac7dd9f90488976a1811a31a12ef31f97a40e47a
+weight,checkpoint,deepseek,torch.bfloat16,8,4,mlu:4,model.layers.0.self_attn.q_proj.weight,"[3072, 2048]","[384, 2048]",0,"[[1536, 384]]",94cfd4abbf296e5d5618c23d9391f0e58826567bc97458cb0e07deeee3cfabeb
+weight,checkpoint,deepseek,torch.bfloat16,8,6,mlu:6,model.layers.0.self_attn.q_proj.weight,"[3072, 2048]","[384, 2048]",0,"[[2304, 384]]",f894686d1d31809002159c24f1b600c1c774322911375c13480fa282921d029c
+weight,checkpoint,deepseek,torch.bfloat16,8,1,mlu:1,model.layers.0.self_attn.kv_b_proj.weight,"[4096, 512]","[512, 512]",0,"[[512, 512]]",868e425b383093481efb99448ede7288567f5fd50783e1c241ec5e10b4dde715
+weight,checkpoint,deepseek,torch.bfloat16,8,0,mlu:0,model.layers.0.self_attn.kv_b_proj.weight,"[4096, 512]","[512, 512]",0,"[[0, 512]]",a7bf2aab3e4b82e5e81dda09f4445585f80cb5e828470015d1b13ea7785e7cc7
+weight,checkpoint,deepseek,torch.bfloat16,8,5,mlu:5,model.layers.0.self_attn.kv_b_proj.weight,"[4096, 512]","[512, 512]",0,"[[2560, 512]]",02fb4608ed05e50a6b33dd1ad8438e36400ff792dbbab4bd8c28b0b64bcb2287
+weight,checkpoint,deepseek,torch.bfloat16,8,3,mlu:3,model.layers.0.self_attn.kv_b_proj.weight,"[4096, 512]","[512, 512]",0,"[[1536, 512]]",d0f6be746b7e15f0894083f79dfea4d38bbd51d4d7a1d4807f8e6792d1bbc109
+weight,checkpoint,deepseek,torch.bfloat16,8,7,mlu:7,model.layers.0.self_attn.kv_b_proj.weight,"[4096, 512]","[512, 512]",0,"[[3584, 512]]",4943c1d9379e25464132e2e2ce104da27ce1e0354c2eac5637d6a0f76c39b09e
+weight,checkpoint,deepseek,torch.bfloat16,8,2,mlu:2,model.layers.0.self_attn.kv_b_proj.weight,"[4096, 512]","[512, 512]",0,"[[1024, 512]]",0c941cd25ca4bae1403c6db5ea12e1662673cdc716f3ce6d204defc246ff82a2
+weight,checkpoint,deepseek,torch.bfloat16,8,4,mlu:4,model.layers.0.self_attn.kv_b_proj.weight,"[4096, 512]","[512, 512]",0,"[[2048, 512]]",bc13a42c4706bb15c03febd6d21214d4f190d1222efacc23f63f14b4641fac4e
+weight,checkpoint,deepseek,torch.bfloat16,8,6,mlu:6,model.layers.0.self_attn.kv_b_proj.weight,"[4096, 512]","[512, 512]",0,"[[3072, 512]]",e9375c42d6899ac19aaa80a30fb18994b9006b752ae29181546f1d96e007215c
+weight,checkpoint,deepseek,torch.bfloat16,8,0,mlu:0,model.layers.0.self_attn.o_proj.weight,"[2048, 2048]","[2048, 256]",1,"[[0, 256]]",525634d4e63705c740dd753e6c5ec3480954ca21d0b263fb2e95f28bb17bdc0a
+weight,checkpoint,deepseek,torch.bfloat16,8,5,mlu:5,model.layers.0.self_attn.o_proj.weight,"[2048, 2048]","[2048, 256]",1,"[[1280, 256]]",26d21bc0b47354e4f748256c212be519c40ad262016726fce03083e7503438f7
+weight,checkpoint,deepseek,torch.bfloat16,8,1,mlu:1,model.layers.0.self_attn.o_proj.weight,"[2048, 2048]","[2048, 256]",1,"[[256, 256]]",4ceae26c756a8352bcfc9efe783632e6bb1d6bcfad7f283680cf39b6ab3d1eb9
+weight,checkpoint,deepseek,torch.bfloat16,8,7,mlu:7,model.layers.0.self_attn.o_proj.weight,"[2048, 2048]","[2048, 256]",1,"[[1792, 256]]",b767dcfa4404d1641230ec3c7a9dce151d8301d864fb16820aa64148be4d847a
+weight,checkpoint,deepseek,torch.bfloat16,8,3,mlu:3,model.layers.0.self_attn.o_proj.weight,"[2048, 2048]","[2048, 256]",1,"[[768, 256]]",fff1057321c8160167f0cadc665c140a02bc031dbdb3c53ce478a640b07e7010
+weight,checkpoint,deepseek,torch.bfloat16,8,2,mlu:2,model.layers.0.self_attn.o_proj.weight,"[2048, 2048]","[2048, 256]",1,"[[512, 256]]",874e9b199d3fb0429651261296c411511312d6b382ecfa0ab2f366a0a2fdd19e
+weight,checkpoint,deepseek,torch.bfloat16,8,4,mlu:4,model.layers.0.self_attn.o_proj.weight,"[2048, 2048]","[2048, 256]",1,"[[1024, 256]]",bd3a8d6c9037210c63638ad67086617161b963fb6c1a4346c8b9da9f6f4a451e
+weight,checkpoint,deepseek,torch.bfloat16,8,6,mlu:6,model.layers.0.self_attn.o_proj.weight,"[2048, 2048]","[2048, 256]",1,"[[1536, 256]]",f1532b823a65aa940b1fb77f128215ecfff0a5fbaf8ad45fa21e96ccca3992bf
+weight,checkpoint,deepseek,torch.bfloat16,8,0,mlu:0,model.layers.0.mlp.gate_proj.weight,"[10944, 2048]","[1368, 2048]",0,"[[0, 1368]]",df22d114d26cbfa5c298379d09b7f3756536ee991132e587ab969ddd16c3b3da
+weight,checkpoint,deepseek,torch.bfloat16,8,1,mlu:1,model.layers.0.mlp.gate_proj.weight,"[10944, 2048]","[1368, 2048]",0,"[[1368, 1368]]",5606512dc72ccdba90184d45ec1dc0745108da02e23c5c3aa9d0a2bad2bf2870
+weight,checkpoint,deepseek,torch.bfloat16,8,7,mlu:7,model.layers.0.mlp.gate_proj.weight,"[10944, 2048]","[1368, 2048]",0,"[[9576, 1368]]",5158466ea4022653d92c99ac13938409beb2cd7ca05f183f232d25fb5e9f9080
+weight,checkpoint,deepseek,torch.bfloat16,8,5,mlu:5,model.layers.0.mlp.gate_proj.weight,"[10944, 2048]","[1368, 2048]",0,"[[6840, 1368]]",ec9da8375a4589bdd1b1f574698a7e57f3a32638a22f8508a9cba688db19181b
+weight,checkpoint,deepseek,torch.bfloat16,8,3,mlu:3,model.layers.0.mlp.gate_proj.weight,"[10944, 2048]","[1368, 2048]",0,"[[4104, 1368]]",d35066eb83dc182827dea02c1341282dabdac202616475023e5fe6112a357d45
+weight,checkpoint,deepseek,torch.bfloat16,8,4,mlu:4,model.layers.0.mlp.gate_proj.weight,"[10944, 2048]","[1368, 2048]",0,"[[5472, 1368]]",056f0c06d293c896142c3541bb63ccb6266ed2acd1f4e78ec7b1c41f64458b17
+weight,checkpoint,deepseek,torch.bfloat16,8,2,mlu:2,model.layers.0.mlp.gate_proj.weight,"[10944, 2048]","[1368, 2048]",0,"[[2736, 1368]]",f4353ef262861168a5c583f9bec20ad2a3ff4fc45e15c646a2e7cdf20ba22dae
+weight,checkpoint,deepseek,torch.bfloat16,8,6,mlu:6,model.layers.0.mlp.gate_proj.weight,"[10944, 2048]","[1368, 2048]",0,"[[8208, 1368]]",c41365fa1f9fc4938df60b25d93e95e5f3aed5c5332ee070bea654252d620bbb
+weight,checkpoint,deepseek,torch.bfloat16,8,0,mlu:0,model.layers.0.mlp.up_proj.weight,"[10944, 2048]","[1368, 2048]",0,"[[0, 1368]]",b27bd5fb201124e82239cf6c762233362b0d86eacb49012eee0c373b1472ba96
+weight,checkpoint,deepseek,torch.bfloat16,8,7,mlu:7,model.layers.0.mlp.up_proj.weight,"[10944, 2048]","[1368, 2048]",0,"[[9576, 1368]]",b9104719069156b86df1b59a054c36cd45529984a04a4efff9ae4d32c73c538e
+weight,checkpoint,deepseek,torch.bfloat16,8,1,mlu:1,model.layers.0.mlp.up_proj.weight,"[10944, 2048]","[1368, 2048]",0,"[[1368, 1368]]",b2ccc6f920ac89e9793df6edfed697f4b70e18671f26f1e420c9268637ebd125
+weight,checkpoint,deepseek,torch.bfloat16,8,3,mlu:3,model.layers.0.mlp.up_proj.weight,"[10944, 2048]","[1368, 2048]",0,"[[4104, 1368]]",e68e39954e4adde5203c13e2d37fd41ccbe3c3edb56e4c9b6cd13b6587ae616c
+weight,checkpoint,deepseek,torch.bfloat16,8,5,mlu:5,model.layers.0.mlp.up_proj.weight,"[10944, 2048]","[1368, 2048]",0,"[[6840, 1368]]",fe5ec02abee9dc9e5e6eeca3e8875a6ca9e24981f847347c81c1aa84a9416210
+weight,checkpoint,deepseek,torch.bfloat16,8,6,mlu:6,model.layers.0.mlp.up_proj.weight,"[10944, 2048]","[1368, 2048]",0,"[[8208, 1368]]",eb3f85c006339d0fe307d363be65f514133aa6afad22c6dbc3b280abf26deba1
+weight,checkpoint,deepseek,torch.bfloat16,8,2,mlu:2,model.layers.0.mlp.up_proj.weight,"[10944, 2048]","[1368, 2048]",0,"[[2736, 1368]]",18c6a6ea2b8f75400eb5df0640fca4df994d7ce5a07b6640d7032d3c3301cf24
+weight,checkpoint,deepseek,torch.bfloat16,8,4,mlu:4,model.layers.0.mlp.up_proj.weight,"[10944, 2048]","[1368, 2048]",0,"[[5472, 1368]]",ef415f1086da4ed70627678255561b0ce6db668bcad89ee89fa20ff516d04f8a
+weight,checkpoint,deepseek,torch.bfloat16,8,3,mlu:3,model.layers.0.mlp.down_proj.weight,"[2048, 10944]","[2048, 1368]",1,"[[4104, 1368]]",c389a37b9fbe74a33fb05a065af7438fd93a0455a9244765e95fa860f29c345d
+weight,checkpoint,deepseek,torch.bfloat16,8,5,mlu:5,model.layers.0.mlp.down_proj.weight,"[2048, 10944]","[2048, 1368]",1,"[[6840, 1368]]",6ba48b8d55d25940fbf403d9d5063834f3b7cf4f47ff6d46983adf8fb7d38fc7
+weight,checkpoint,deepseek,torch.bfloat16,8,2,mlu:2,model.layers.0.mlp.down_proj.weight,"[2048, 10944]","[2048, 1368]",1,"[[2736, 1368]]",1c707ee75f46ef472018c79e966b84318e79989fd03cd53d0df5e25606b408a7
+weight,checkpoint,deepseek,torch.bfloat16,8,0,mlu:0,model.layers.0.mlp.down_proj.weight,"[2048, 10944]","[2048, 1368]",1,"[[0, 1368]]",64b05620a16abda47ae7420f1c7daf0c78075e24ddf07c51077e066d81c10a31
+weight,checkpoint,deepseek,torch.bfloat16,8,1,mlu:1,model.layers.0.mlp.down_proj.weight,"[2048, 10944]","[2048, 1368]",1,"[[1368, 1368]]",7efaf9a9639d7189b95de1c06023595fd3e95dca8370070e13328ceb170536d0
+weight,checkpoint,deepseek,torch.bfloat16,8,7,mlu:7,model.layers.0.mlp.down_proj.weight,"[2048, 10944]","[2048, 1368]",1,"[[9576, 1368]]",3da72254582c82c55d8404e9749d9766da823b3592d5e97d5d7230f54c28e37f
+weight,checkpoint,deepseek,torch.bfloat16,8,4,mlu:4,model.layers.0.mlp.down_proj.weight,"[2048, 10944]","[2048, 1368]",1,"[[5472, 1368]]",02f0f807275dca088bda27870685c58b1655be96929165c7a36f5b6282dd0077
+weight,checkpoint,deepseek,torch.bfloat16,8,6,mlu:6,model.layers.0.mlp.down_proj.weight,"[2048, 10944]","[2048, 1368]",1,"[[8208, 1368]]",52b35089bc445e848d1182bdcd94052ab8bfe7be956318dcb5dc7501805b47a7
+weight,column,small,bfloat16,1,0,mlu:0,packed.weight,"[256, 512]","[256, 512]",0,"[[0, 128], [128, 128]]",a8517ba7e861aeaeb055bcb74f8dcf9ffb607b5ab8f25e2ad120ab47bc0df662
+weight,column,small,float32,1,0,mlu:0,packed.weight,"[256, 512]","[256, 512]",0,"[[0, 128], [128, 128]]",417ab26fde7e45fa900f87eaa92911a2356ee7974c7bdfc3f26ac1566d5be18e
+weight,column,medium,bfloat16,1,0,mlu:0,packed.weight,"[1024, 2048]","[1024, 2048]",0,"[[0, 512], [512, 512]]",58927e6257a390f03f42481e0fc02e7ef2ee3f73f373cb14fee3cd7995ebf231
+weight,column,medium,float32,1,0,mlu:0,packed.weight,"[1024, 2048]","[1024, 2048]",0,"[[0, 512], [512, 512]]",5e85bd5a02e5dbea2c53bd7728a8bdfbf46d65ada547abf36ec706223f13725f
+weight,column,large,bfloat16,1,0,mlu:0,packed.weight,"[4096, 4096]","[4096, 4096]",0,"[[0, 2048], [2048, 2048]]",bf0ed93b4e894ecd99e2608fe2f5eaf4ec692626dfbdfc2ed527d8ae7fb9178f
+weight,column,large,float32,1,0,mlu:0,packed.weight,"[4096, 4096]","[4096, 4096]",0,"[[0, 2048], [2048, 2048]]",1d792ab354b0ad9bbf0b690ee6cf9e9b35e7387e716f10366fe352094e081019
+weight,column,projection,bfloat16,1,0,mlu:0,packed.weight,"[4096, 7168]","[4096, 7168]",0,"[[0, 2048], [2048, 2048]]",aa153d1c5979755c279783525195a89c1cd57c74e682e7d82c9460367e32b412
+weight,column,projection,float32,1,0,mlu:0,packed.weight,"[4096, 7168]","[4096, 7168]",0,"[[0, 2048], [2048, 2048]]",585e69c13b3b5d8e5c8a5f584e54988ee17c93e58d63c9a4d73bc64d58cc3ef9
+weight,column,small,bfloat16,2,1,mlu:1,packed.weight,"[256, 512]","[128, 512]",0,"[[64, 64], [192, 64]]",4ecb6b67f02b61b3f109657a2fe1d227a995cd50f919ea4cad30076a7f30f65b
+weight,column,small,bfloat16,2,0,mlu:0,packed.weight,"[256, 512]","[128, 512]",0,"[[0, 64], [128, 64]]",84062b76d2561292399a3aa2e594556850e68076b812d90b643e1a5a4e36735e
+weight,column,small,float32,2,0,mlu:0,packed.weight,"[256, 512]","[128, 512]",0,"[[0, 64], [128, 64]]",3dc43aaa450385e3c91938c4f5ea00b8f9eb5d36e448186bc7878907780e1bf0
+weight,column,small,float32,2,1,mlu:1,packed.weight,"[256, 512]","[128, 512]",0,"[[64, 64], [192, 64]]",8ecab8ef30ff498415776ebbfe50f286a324c434b7daf88475050f2f338efa4f
+weight,column,medium,bfloat16,2,1,mlu:1,packed.weight,"[1024, 2048]","[512, 2048]",0,"[[256, 256], [768, 256]]",183bbe9b341507e2c372a25a6978a579856821fdb6cc342989d08a5f630cb98c
+weight,column,medium,bfloat16,2,0,mlu:0,packed.weight,"[1024, 2048]","[512, 2048]",0,"[[0, 256], [512, 256]]",f9fe411b7513484577c7bc7f206110a42e1badd1226b36436d3e52801bc9f78a
+weight,column,medium,float32,2,0,mlu:0,packed.weight,"[1024, 2048]","[512, 2048]",0,"[[0, 256], [512, 256]]",7fe390b241b0d635bd66131b72024a4b250e2f22856a2267171534f4b6accc26
+weight,column,medium,float32,2,1,mlu:1,packed.weight,"[1024, 2048]","[512, 2048]",0,"[[256, 256], [768, 256]]",dcd8d354d3cbec1824b16f4b69765aca7a0abc324d1d8d0183e130b5d01dd6ee
+weight,column,large,bfloat16,2,1,mlu:1,packed.weight,"[4096, 4096]","[2048, 4096]",0,"[[1024, 1024], [3072, 1024]]",b9091c56cb843de7bb59d124fc7e34428b4725cf662b8258ad34fa3e4c8b9821
+weight,column,large,bfloat16,2,0,mlu:0,packed.weight,"[4096, 4096]","[2048, 4096]",0,"[[0, 1024], [2048, 1024]]",2c8978896c30b82fa97b5be3899c1aa8230621cc68a7eacebfe1946120e55c23
+weight,column,large,float32,2,0,mlu:0,packed.weight,"[4096, 4096]","[2048, 4096]",0,"[[0, 1024], [2048, 1024]]",2e73e6b965dfcae366efd8cdb7b4fce75948a119c3cde2200d248389a72e15f4
+weight,column,large,float32,2,1,mlu:1,packed.weight,"[4096, 4096]","[2048, 4096]",0,"[[1024, 1024], [3072, 1024]]",39617e7cbc10552f1d3f589b5107eb6af18f6a04bb59ece65359252940aa47ef
+weight,column,projection,bfloat16,2,0,mlu:0,packed.weight,"[4096, 7168]","[2048, 7168]",0,"[[0, 1024], [2048, 1024]]",42939737c4769fccc8f8711b708e9cf73e9fb4aa476a7bf3638621a849d920ed
+weight,column,projection,bfloat16,2,1,mlu:1,packed.weight,"[4096, 7168]","[2048, 7168]",0,"[[1024, 1024], [3072, 1024]]",458d61d0e2332c194db96787a81e05d9cee0318d8427ba385a5632104e251544
+weight,column,projection,float32,2,0,mlu:0,packed.weight,"[4096, 7168]","[2048, 7168]",0,"[[0, 1024], [2048, 1024]]",4429b3c00b86dff1a4d9566e836efbb9f8ebb0a522cc6e719a6b07ed6a62897b
+weight,column,projection,float32,2,1,mlu:1,packed.weight,"[4096, 7168]","[2048, 7168]",0,"[[1024, 1024], [3072, 1024]]",34a5baed50b392ccfec2f2ef0e8a1edb6d7546156db95040eb6fb52a51699cbb
+weight,column,small,bfloat16,8,7,mlu:7,packed.weight,"[256, 512]","[32, 512]",0,"[[112, 16], [240, 16]]",72018438f18cf165aba734f43c7aac508045e8b4ae482287f532d55287bf2706
+weight,column,small,bfloat16,8,3,mlu:3,packed.weight,"[256, 512]","[32, 512]",0,"[[48, 16], [176, 16]]",df82057b37809cc9dd10c896d1e665ee990b1bc970260859ae3bd377cf7700b2
+weight,column,small,bfloat16,8,5,mlu:5,packed.weight,"[256, 512]","[32, 512]",0,"[[80, 16], [208, 16]]",42c5811baebef1021eb51d46604293637e1bbcd7df27af217b3d7b98c561213b
+weight,column,small,bfloat16,8,0,mlu:0,packed.weight,"[256, 512]","[32, 512]",0,"[[0, 16], [128, 16]]",9f87abd9875c21812417630557fcad85b66bb450b1c52505715358b5c1c20e89
+weight,column,small,bfloat16,8,2,mlu:2,packed.weight,"[256, 512]","[32, 512]",0,"[[32, 16], [160, 16]]",0aefa30ab6c20695205d92ab41d4f723553b004e05ba1c119b63f39d59ef4fa9
+weight,column,small,bfloat16,8,1,mlu:1,packed.weight,"[256, 512]","[32, 512]",0,"[[16, 16], [144, 16]]",1d9bda57963f1629b93b7e306bb6919ba400c51f9215ab2cc70710b35ba0e3f6
+weight,column,small,bfloat16,8,4,mlu:4,packed.weight,"[256, 512]","[32, 512]",0,"[[64, 16], [192, 16]]",cde567ced62508506714c54d2b346ee84bc40cda0c2e58b627620f6f2f34acea
+weight,column,small,bfloat16,8,6,mlu:6,packed.weight,"[256, 512]","[32, 512]",0,"[[96, 16], [224, 16]]",2fe78fb8efe799c14df90f93db68ab019397f219e2c6b16fda1a683a3a458114
+weight,column,small,float32,8,1,mlu:1,packed.weight,"[256, 512]","[32, 512]",0,"[[16, 16], [144, 16]]",c7041a43456eacf996235ed37d97512bd2aa3dee4f3e799544e3e76c7c98b89a
+weight,column,small,float32,8,3,mlu:3,packed.weight,"[256, 512]","[32, 512]",0,"[[48, 16], [176, 16]]",4e07b0ca8999a41c6cf70f6b654ce6e47b35fae3cf7072de4f909e760362e2b1
+weight,column,small,float32,8,7,mlu:7,packed.weight,"[256, 512]","[32, 512]",0,"[[112, 16], [240, 16]]",271931ac139dd5364ef1cf39807578d42b1478e4b474cbe17067a8f2fc1064d2
+weight,column,small,float32,8,2,mlu:2,packed.weight,"[256, 512]","[32, 512]",0,"[[32, 16], [160, 16]]",fd7074538bfb007d713ffabe46ed122f45b37340eac83611a5c7c69a99bef486
+weight,column,small,float32,8,0,mlu:0,packed.weight,"[256, 512]","[32, 512]",0,"[[0, 16], [128, 16]]",5c9a350645dc8497910254e74f563f90f7ab170c01e56aeff0411b5a47384eee
+weight,column,small,float32,8,6,mlu:6,packed.weight,"[256, 512]","[32, 512]",0,"[[96, 16], [224, 16]]",bd44c2ed68f29c87b9bb8915453a53d5d2bc39709d991291756eba0afd03a70b
+weight,column,small,float32,8,5,mlu:5,packed.weight,"[256, 512]","[32, 512]",0,"[[80, 16], [208, 16]]",4ee916508468e076ba78cc7d4302fc063a96197ea59004e0e173d001eb54dca2
+weight,column,small,float32,8,4,mlu:4,packed.weight,"[256, 512]","[32, 512]",0,"[[64, 16], [192, 16]]",ff786f1c7d31d9fcc4963d754821613dbffd8ab4bc3bc46087b41cf6771d18f8
+weight,row,small,bfloat16,1,0,mlu:0,row.weight,"[256, 512]","[256, 512]",1,"[[0, 512]]",a8517ba7e861aeaeb055bcb74f8dcf9ffb607b5ab8f25e2ad120ab47bc0df662
+weight,row,small,float32,1,0,mlu:0,row.weight,"[256, 512]","[256, 512]",1,"[[0, 512]]",417ab26fde7e45fa900f87eaa92911a2356ee7974c7bdfc3f26ac1566d5be18e
+weight,row,medium,bfloat16,1,0,mlu:0,row.weight,"[1024, 2048]","[1024, 2048]",1,"[[0, 2048]]",58927e6257a390f03f42481e0fc02e7ef2ee3f73f373cb14fee3cd7995ebf231
+weight,row,medium,float32,1,0,mlu:0,row.weight,"[1024, 2048]","[1024, 2048]",1,"[[0, 2048]]",5e85bd5a02e5dbea2c53bd7728a8bdfbf46d65ada547abf36ec706223f13725f
+weight,row,large,bfloat16,1,0,mlu:0,row.weight,"[4096, 4096]","[4096, 4096]",1,"[[0, 4096]]",bf0ed93b4e894ecd99e2608fe2f5eaf4ec692626dfbdfc2ed527d8ae7fb9178f
+weight,row,large,float32,1,0,mlu:0,row.weight,"[4096, 4096]","[4096, 4096]",1,"[[0, 4096]]",1d792ab354b0ad9bbf0b690ee6cf9e9b35e7387e716f10366fe352094e081019
+weight,row,projection,bfloat16,1,0,mlu:0,row.weight,"[4096, 7168]","[4096, 7168]",1,"[[0, 7168]]",aa153d1c5979755c279783525195a89c1cd57c74e682e7d82c9460367e32b412
+weight,row,projection,float32,1,0,mlu:0,row.weight,"[4096, 7168]","[4096, 7168]",1,"[[0, 7168]]",585e69c13b3b5d8e5c8a5f584e54988ee17c93e58d63c9a4d73bc64d58cc3ef9
+weight,row,small,bfloat16,2,1,mlu:1,row.weight,"[256, 512]","[256, 256]",1,"[[256, 256]]",1fdd11f48eb52bcac39f79d46cf79ff4b19d0fb6e54046720e8c8f183f965591
+weight,row,small,bfloat16,2,0,mlu:0,row.weight,"[256, 512]","[256, 256]",1,"[[0, 256]]",4a57d68f336234155d30d1986c46fd4d3d62b4f9face91a107049cb8f978b581
+weight,row,small,float32,2,1,mlu:1,row.weight,"[256, 512]","[256, 256]",1,"[[256, 256]]",60964da3d7dd0678de4983bf2caeb14177cea0d7b5024b37a621e7fb277a73b3
+weight,row,small,float32,2,0,mlu:0,row.weight,"[256, 512]","[256, 256]",1,"[[0, 256]]",db464c261770f9c6c32e38dc11b0eb9a013fb1e2b85eebef3f6afc2a17360c27
+weight,row,medium,bfloat16,2,1,mlu:1,row.weight,"[1024, 2048]","[1024, 1024]",1,"[[1024, 1024]]",458f0b128ba5aac9ae9ae6f6c1dd32500dd2a18de5c98dcdc72abdb47ac1c90c
+weight,row,medium,bfloat16,2,0,mlu:0,row.weight,"[1024, 2048]","[1024, 1024]",1,"[[0, 1024]]",d39bce66d298d26c6516f91fa47555687f1bea2dd0b32f3b7ab1cd52bdc47f2f
+weight,row,medium,float32,2,1,mlu:1,row.weight,"[1024, 2048]","[1024, 1024]",1,"[[1024, 1024]]",e9c5707894a9cb4f1f31bbdd7dfc25919101f79e42bf4c34646d0d58b41a96ba
+weight,row,medium,float32,2,0,mlu:0,row.weight,"[1024, 2048]","[1024, 1024]",1,"[[0, 1024]]",b8de3779fdcd5f969cd4669ac03bc6f363621f46d3bcb1104214c0caad79ab47
+weight,row,large,bfloat16,2,0,mlu:0,row.weight,"[4096, 4096]","[4096, 2048]",1,"[[0, 2048]]",7185eb63a7c124bec4d141ef90401f6643e26ff4bcae1f63f8f52079934ea363
+weight,row,large,bfloat16,2,1,mlu:1,row.weight,"[4096, 4096]","[4096, 2048]",1,"[[2048, 2048]]",10dc3c67c499d400e155208d1e81345cc23165beba560a1daa7d944ba3f1723a
+weight,row,small,bfloat16,8,2,mlu:2,row.weight,"[256, 512]","[256, 64]",1,"[[128, 64]]",836afbcaa5fe0f2a5cf52fd805f6ec21abb0e94b9759e3148c9b51c20a12692d
+weight,row,small,bfloat16,8,5,mlu:5,row.weight,"[256, 512]","[256, 64]",1,"[[320, 64]]",f7c2a5eede59105fe5a3d542e10ff1d0dcc1636642cc6f71728b9ebf3fdb00ca
+weight,row,small,bfloat16,8,0,mlu:0,row.weight,"[256, 512]","[256, 64]",1,"[[0, 64]]",852f2261f0a68c8c877bd221b210fb9e052b9d7470dd6f4fc2918e99834cf854
+weight,row,small,bfloat16,8,1,mlu:1,row.weight,"[256, 512]","[256, 64]",1,"[[64, 64]]",c895b856c8ca050e3f3353faf705fd370fdaf091a6ab47c825c0e46acc5dd81a
+weight,row,small,bfloat16,8,4,mlu:4,row.weight,"[256, 512]","[256, 64]",1,"[[256, 64]]",8c5e677f6e9d904542322c14d75b53acc6e8edca8f2d49fcf6d2d0adb5c64742
+weight,row,small,bfloat16,8,7,mlu:7,row.weight,"[256, 512]","[256, 64]",1,"[[448, 64]]",6ce4e961df86f55d1f2a0e4154e4b49c1c168bf9abe778a26ecd0d7db1f94ffd
+weight,row,small,bfloat16,8,6,mlu:6,row.weight,"[256, 512]","[256, 64]",1,"[[384, 64]]",f0f8bce56c7bdd02b0f362d391a61622712fb4259e6ae8550efc39597f2e0caa
+weight,row,small,bfloat16,8,3,mlu:3,row.weight,"[256, 512]","[256, 64]",1,"[[192, 64]]",3c45321ddffc85ae2b590e5dc6ab269a517328a2dc1aa0c120c2c4f19e3dc4c7
+weight,row,small,float32,8,0,mlu:0,row.weight,"[256, 512]","[256, 64]",1,"[[0, 64]]",c71b27575f908192e730416170f35bd2a334b2b1f184f6117b7340870fa04372
+weight,row,small,float32,8,5,mlu:5,row.weight,"[256, 512]","[256, 64]",1,"[[320, 64]]",1632b7c1983960dfbf798c89be3e2b9c396d77e6d33d42dcdb3e16fc2f120072
+weight,row,small,float32,8,1,mlu:1,row.weight,"[256, 512]","[256, 64]",1,"[[64, 64]]",bbc765f3ee508fdaada5cd9084f568c0affdf0f6e2fc7968d85b456e016926c9
+weight,row,small,float32,8,4,mlu:4,row.weight,"[256, 512]","[256, 64]",1,"[[256, 64]]",26bb5778f4e0a7586216c06d2c58d15ba6fa4f2fcd10c8fde5b2e0f796a8c8c4
+weight,row,small,float32,8,2,mlu:2,row.weight,"[256, 512]","[256, 64]",1,"[[128, 64]]",36d9a321cf6b6631d3ff9bd07908f9dc080cff0daeb3a37c4198aaa845beaeca
+weight,row,small,float32,8,6,mlu:6,row.weight,"[256, 512]","[256, 64]",1,"[[384, 64]]",a233f62bfad968a011b8c9058ff4cc5e76b6d16fad30f7561db24028abb77ef2
+weight,row,small,float32,8,7,mlu:7,row.weight,"[256, 512]","[256, 64]",1,"[[448, 64]]",1dca2da618f0001e4e98ba8e66480be9fbad5b491b334eaa9e2009cfe2b7a31e
+weight,row,small,float32,8,3,mlu:3,row.weight,"[256, 512]","[256, 64]",1,"[[192, 64]]",989482a9c044f3fc0d76881f9146288c312a00d7c55b2f15f9decd95460d3273

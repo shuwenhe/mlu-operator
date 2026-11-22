@@ -1,0 +1,8 @@
+case,elements,bit_mismatch,tolerance_mismatch,max_abs,max_rel,max_ulp,unexpected_nonfinite,status
+synthetic_rmsnorm_1x512,512,0,0,0.0,0.0,0,0,PASS
+synthetic_rmsnorm_7x2048,14336,0,0,0.0,0.0,0,0,PASS
+checkpoint_rmsnorm_1x2048,2048,0,0,0.0,0.0,0,0,PASS
+checkpoint_rmsnorm_5x2048,10240,0,0,0.0,0.0,0,0,PASS
+router_layer2-m1,64,0,0,0.0,0.0,0,0,PASS
+router_layer2-m17,1088,0,0,0.0,0.0,0,0,PASS
+router_layer26-m1,64,0,0,0.0,0.0,0,0,PASS

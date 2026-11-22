@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd)
+devices=(--device=/dev/cambricon_ctl --device=/dev/cambricon_gdr)
+for card in {0..7}; do
+    devices+=(--device="/dev/cambricon_dev$card" --device="/dev/cambricon_ipcm$card")
+done
+
+timeout 120s docker run --rm --pull=never --network=none --cap-drop=ALL \
+    --security-opt=no-new-privileges --user "$(id -u):$(id -g)" --read-only \
+    --tmpfs /tmp:rw,exec,mode=1777 --shm-size=1g "${devices[@]}" \
+    --mount "type=bind,src=$repo_root,dst=/project,readonly" --workdir /project \
+    -e HOME=/tmp -e LOGNAME=phase13 -e TORCHINDUCTOR_CACHE_DIR=/tmp/inductor \
+    -e TRITON_CACHE_DIR=/tmp/triton -e VLLM_CACHE_ROOT=/tmp/vllm \
+    -e TORCH_DEVICE_BACKEND_AUTOLOAD=0 -e OMP_NUM_THREADS=1 -e PYTHONUNBUFFERED=1 \
+    -e VLLM_NO_USAGE_STATS=1 -e GLOO_SOCKET_IFNAME=lo \
+    --entrypoint /torch/venv3/pytorch_infer/bin/python3 \
+    sha256:8e653daf38cb9cdd7a2120f9f7dcddcbe50677ac5c1c6e8d1243fa9576e26756 \
+    -m torch.distributed.run --master-addr=127.0.0.1 --master-port=29513 \
+    --nproc-per-node=8 integration/vllm_native_mlu/phase13_1/cncl_probe.py

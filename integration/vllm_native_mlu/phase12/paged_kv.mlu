@@ -1,0 +1,59 @@
+#include <bang.h>
+#include <cnrt.h>
+#include <stdint.h>
+
+namespace {
+constexpr int heads = 16;
+constexpr int key_width = 192;
+constexpr int value_width = 128;
+
+// Page tensors have layout [physical slots, heads, width]. Native attention
+// tensors have layout [heads, tokens, width]. A slot can be padding (-1).
+__mlu_global__ void transfer(uint16_t *page_k, uint16_t *page_v,
+    uint16_t *linear_k, uint16_t *linear_v, const int32_t *mapping,
+    int tokens, int block_size, int slots, bool write) {
+    __nram__ uint16_t k[key_width], v[value_width];
+    __nram__ int32_t index[1];
+    for (int i = taskId; i < tokens * heads; i += taskDim) {
+        const int head = i / tokens, token = i % tokens;
+        __memcpy(index, mapping + (write ? token : token / block_size),
+                 sizeof(index), GDRAM2NRAM);
+        int slot = index[0];
+        if (!write && slot >= 0 && slot < slots / block_size)
+            slot = slot * block_size + token % block_size;
+        else if (!write)
+            slot = -1;
+        if (slot < 0 || slot >= slots) {
+            if (!write) {
+                for (int j = 0; j < key_width; ++j) k[j] = 0;
+                for (int j = 0; j < value_width; ++j) v[j] = 0;
+                __memcpy(linear_k + size_t(i) * key_width, k, sizeof(k), NRAM2GDRAM);
+                __memcpy(linear_v + size_t(i) * value_width, v, sizeof(v), NRAM2GDRAM);
+            }
+            continue;
+        }
+        const size_t physical = size_t(slot) * heads + head;
+        uint16_t *pk = page_k + physical * key_width;
+        uint16_t *pv = page_v + physical * value_width;
+        uint16_t *lk = linear_k + size_t(i) * key_width;
+        uint16_t *lv = linear_v + size_t(i) * value_width;
+        __memcpy(k, write ? lk : pk, sizeof(k), GDRAM2NRAM);
+        __memcpy(v, write ? lv : pv, sizeof(v), GDRAM2NRAM);
+        __memcpy(write ? pk : lk, k, sizeof(k), NRAM2GDRAM);
+        __memcpy(write ? pv : lv, v, sizeof(v), NRAM2GDRAM);
+    }
+}
+}
+
+extern "C" cnrtRet_t phase12_paged_kv(cnrtQueue_t queue, uint16_t *page_k, uint16_t *page_v,
+    uint16_t *linear_k, uint16_t *linear_v, const int32_t *map,
+    int tokens, int block_size, int slots, int write) {
+    if (!queue || !page_k || !page_v || !linear_k || !linear_v || !map ||
+        tokens <= 0 || tokens > 131 || block_size <= 0 || slots < block_size ||
+        slots % block_size != 0 || (write != 0 && write != 1))
+        return cnrtErrorArgsInvalid;
+    const cnrtDim3_t grid = {32, 1, 1};
+    transfer<<<grid, cnrtFuncTypeBlock, queue>>>(page_k, page_v, linear_k, linear_v,
+        map, tokens, block_size, slots, bool(write));
+    return cnrtGetLastError();
+}

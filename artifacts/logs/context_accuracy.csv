@@ -1,0 +1,6 @@
+prompt_length,has_frozen_reference,status,native_tokens,reference_tokens
+1,True,PASS,"[254, 4334, 1439, 245]","[254, 4334, 1439, 245]"
+7,True,PASS,"[13, 185, 185, 1679]","[13, 185, 185, 1679]"
+17,True,PASS,"[2643, 254, 4345, 280]","[2643, 254, 4345, 280]"
+65,True,PASS,"[2643, 254, 4345, 280]","[2643, 254, 4345, 280]"
+128,False,BLOCKED,,audited native model max_model_len=128 requires >=1 decode token

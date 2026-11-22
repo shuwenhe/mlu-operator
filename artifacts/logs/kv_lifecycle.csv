@@ -1,0 +1,9 @@
+gate,status,value,note
+cache_allocation_seen,PASS,2628,schedule events captured
+cache_release_seen,PASS,1406,cache_free events captured
+block_reuse_observed,PASS,2657,reused block ids across requests
+prefix_reuse,BLOCKED,,native model enforces enable_prefix_caching=False
+request_cancellation,BLOCKED,,offline LLM API has no cancellation hook
+cache_eviction,BLOCKED,,no explicit eviction signal exposed by current API
+multi_request_isolation,PASS,9,distinct/new block assignments observed with concurrency
+repeat_run_leak_check,PASS,1406,requests observed released

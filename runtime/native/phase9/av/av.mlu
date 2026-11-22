@@ -1,0 +1,71 @@
+#include "av.h"
+#include <bang.h>
+#include <limits>
+
+#ifdef AV_BF16
+using Low = bfloat16_t;
+#define KERNEL av_bf16_kernel
+#define LAUNCH phase9_av_bf16
+#define WIDEN __bang_bfloat162float
+#define NARROW __bang_float2bfloat16_rn
+#else
+using Low = half;
+#define KERNEL av_fp16_kernel
+#define LAUNCH phase9_av_fp16
+#define WIDEN __bang_half2float
+#define NARROW __bang_float2half_rn
+#endif
+
+constexpr uint32_t width = 128;
+constexpr uint32_t tile = 64;
+
+
+__mlu_global__ void KERNEL(const Low *probs, const Low *values, float *raw, Low *out,
+                           uint32_t heads, uint32_t seq, uint32_t length, uint32_t capacity) {
+    __nram__ Low low_p[tile], low_v[width];
+    __nram__ float p[tile], v[width], product[width], sum[width];
+    __nram__ float lanes[4 * width];
+    const uint64_t rows = uint64_t(heads) * seq;
+    const uint32_t vector_end = length / 4 * 4;
+    for (uint64_t row = taskId; row < rows; row += taskDim) {
+        const uint64_t head = row / seq;
+        __bang_write_value(sum, width, 0.f);
+        __bang_write_value(lanes, 4 * width, 0.f);
+        for (uint64_t base = 0; base < length; base += tile) {
+            const uint32_t count = length - base < tile ? length - base : tile;
+            __memcpy(low_p, probs + row * length + base, count * sizeof(Low), GDRAM2NRAM);
+            for (uint32_t i = count; i < tile; ++i) low_p[i] = Low{};
+            WIDEN(p, low_p, tile);
+            for (uint32_t i = 0; i < count; ++i) {
+                const uint64_t key = head * capacity + base + i;
+                __memcpy(low_v, values + key * width, sizeof(low_v), GDRAM2NRAM);
+                WIDEN(v, low_v, width);
+                __bang_mul_scalar(product, v, p[i], width);
+                const uint64_t index = base + i;
+                float *acc = lanes + (index < vector_end ? (index % 4) * width : 0);
+                __bang_add(acc, acc, product, width);
+            }
+        }
+        // The checkpoint no-transpose GEMM uses four partial sums.
+        __bang_add(sum, lanes, lanes + width, width);
+        __bang_add(sum, sum, lanes + 2 * width, width);
+        __bang_add(sum, sum, lanes + 3 * width, width);
+        NARROW(low_v, sum, width);
+        __memcpy(raw + row * width, sum, sizeof(sum), NRAM2GDRAM);
+        __memcpy(out + row * width, low_v, sizeof(low_v), NRAM2GDRAM);
+    }
+}
+
+extern "C" cnrtRet_t LAUNCH(cnrtQueue_t queue, const uint16_t *probs, const uint16_t *values,
+    float *raw, uint16_t *out, uint32_t heads, uint32_t seq, uint32_t length, uint32_t capacity) {
+    constexpr uint64_t limit = std::numeric_limits<size_t>::max() / sizeof(float);
+    const uint64_t rows = uint64_t(heads) * seq;
+    if (!queue || !probs || !values || !raw || !out || !heads || !seq || !length ||
+        length > capacity || rows > limit / length || rows > limit / width ||
+        uint64_t(heads) * capacity > limit / width)
+        return cnrtErrorArgsInvalid;
+    KERNEL<<<(cnrtDim3_t{32, 1, 1}), cnrtFuncTypeBlock, queue>>>(
+        reinterpret_cast<const Low *>(probs), reinterpret_cast<const Low *>(values),
+        raw, reinterpret_cast<Low *>(out), heads, seq, length, capacity);
+    return cnrtGetLastError();
+}

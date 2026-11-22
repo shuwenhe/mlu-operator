@@ -19,8 +19,9 @@ public:
     void attention_qk(size_t slot,View q,View k,View positions,int cache_base,
                       float scale,View qk_out,View scaled_out,View masked_out);
     void attention_softmax(size_t slot,View masked,int cache_len,
-                           View maxes_out,View denom_out,View probs_out,View probs_low_out);
-    void attention_av(size_t slot,View probs,View v,View av_out,View out);
+                           View maxes_out,View denom_out,View probs_out,View probs_low_out,
+                           View additive_mask={});
+    void attention_av(size_t slot,View probs,View v,View av_out,View out,int sequence=1);
 private:
     void view(View) const;
     void active(size_t);

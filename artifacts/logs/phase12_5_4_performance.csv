@@ -1,0 +1,16 @@
+metric,case,value,unit
+ttft,len1,0.16529026196803898,s
+tpot,len1,0.16468228469602764,s/token
+peak_memory,len1,582907904,bytes
+ttft,len7,0.7413837229833007,s
+tpot,len7,0.18618446735975644,s/token
+peak_memory,len7,583299584,bytes
+ttft,len17,1.710830713971518,s
+tpot,len17,0.18468437266225615,s/token
+peak_memory,len17,584002560,bytes
+ttft,len65,6.707118739956059,s
+tpot,len65,0.17898179365632436,s/token
+peak_memory,len65,587378688,bytes
+throughput,batch_1_7_17_65,1.4069907243312174,tokens/s
+batch_elapsed,batch_1_7_17_65,11.371787832933478,s
+peak_memory,batch_1_7_17_65,582200832,bytes
