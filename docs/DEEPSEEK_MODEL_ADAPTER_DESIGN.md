@@ -1,9 +1,0 @@
-# DeepSeek-V2-Lite model adapter
-
-The adapter binds Layer 0 checkpoint tensors to the existing runtime. It borrows one Worker, Weight Registry, Memory manager and Dispatch. Callers own queue creation, slot start/finish, activation buffers and cleanup. Weight leases transferred to Dispatch remain live until slot completion. Use one adapter per checkpoint revision, worker and activation dtype.
-
-The implementation sequence is to export validated checkpoint tensors, test Q independently, then test the connected KV chain and its intermediate buffers. A thin adapter preserves the runtime's ownership and validation and gives model code named projection and normalization contracts. A standalone checkpoint execution harness would duplicate these checks and does not provide a reusable integration API.
-
-The source checkpoint stores BF16 weights in row-major output-major order. The exporter validates safetensors metadata and fingerprints the selected contents, config and index. The adapter converts BF16 to FP16 when explicitly requested and transposes projection weights into the runtime's logical `[K,N]` layout. Native projections publish prepacked weights; CNNL projections upload logical weights independently. Native KV consumes both published leases in one slot and one queue. Backend selection is explicit at construction. The independent CPU implementation is a comparison path in the executable.
-
-The adapter operates on caller-provided device views. Dense activations use `stride == columns`. Projection outputs are FP32 staging; low-precision cast boundaries remain explicit in the caller and in the existing KV chain. RoPE accepts precomputed checkpoint YaRN tables and validated position indices. The adapter exercises Layer 0 subgraphs. Full MLA, KV cache management, FFN parity and language model execution remain outside this executable.
