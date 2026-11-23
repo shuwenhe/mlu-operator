@@ -1,7 +1,0 @@
-# Native DeepSeek-V2-Lite model binding
-
-**BLOCKED.** The installed vendor registry and model loader are mapped in the API audit. The existing vendor DeepSeek model invokes a vendor backend with a compressed MLA cache layout. The accepted native router, QK, Softmax, AV and Phase 10 MLA sources remain separate from this model path.
-
-The new `ScheduledAttention` adapter accepts projected, rotary-applied Q/K/V on device. A native model class must supply projections and positions, bind an engine-owned materialized cache specification for each of the 27 layers, and call the adapter from its attention forward method. It must also bind Layer 0 dense FFN, the 26 MoE layers using the accepted FP32 router, and native embedding, residuals, normalization and LM head. This run did not register a substitute model or override the vendor model class. [Installed APIs](PHASE12_3_VENDOR_API_AUDIT.md)
-
-The vendor model's `forward_mla_attn` at `model_executor/models/deepseek_v2.py:1396` takes positions, hidden states, attention metadata and cache tensors. It slices decode tokens at the front using `num_decode_tokens`, runs separate prefill and decode functions, and restores that order when joining outputs. This identifies the boundary for native projections and cache dispatch. A future binding must preserve the same scheduler row ordering and return projected attention outputs to the decoder residual path.
