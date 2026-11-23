@@ -92,6 +92,7 @@ test:
 	@cd "$(BUILD_CPU_DIR)" && ctest --output-on-failure
 	@scripts/test_deepseek_routing.sh
 	@scripts/test_deepseek_chat_mock.sh
+	@python3 scripts/test_tp8_context.py
 
 clean:
 	@rm -rf "$(BUILD_CPU_DIR)" "$(BUILD_MLU_DIR)" "$(BUILD_NATIVE_DIR)"
@@ -103,13 +104,13 @@ deepseek-verify:
 	@echo "Stage C.1–C.3 source and evidence checksums verified."
 
 deepseek-check:
-	@MODEL_DIR="$(MODEL_DIR)" TP="$(TP)" DTYPE="$(DTYPE)" MAX_TOKENS="$(MAX_TOKENS)" \
+	@MODEL_DIR="$(MODEL_DIR)" TP="$(TP)" MAX_MODEL_LEN="$(MAX_MODEL_LEN)" DTYPE="$(DTYPE)" MAX_TOKENS="$(MAX_TOKENS)" \
 	VARIANT="$(DEEPSEEK_DEFAULT_VARIANT)" DEEPSEEK_EXPERIMENT="$(DEEPSEEK_DEFAULT_EXPERIMENT)" \
 	FROZEN_IMAGE="$(FROZEN_IMAGE)" WARM_REQUESTS="$(WARM_REQUESTS)" \
 	scripts/deepseek_infer.sh "$@"
 
 deepseek:
-	@MODEL_DIR="$(MODEL_DIR)" TP="$(TP)" DTYPE="$(DTYPE)" MAX_TOKENS="$(MAX_TOKENS)" \
+	@MODEL_DIR="$(MODEL_DIR)" TP="$(TP)" MAX_MODEL_LEN="$(MAX_MODEL_LEN)" DTYPE="$(DTYPE)" MAX_TOKENS="$(MAX_TOKENS)" \
 	VARIANT="$(DEEPSEEK_DEFAULT_VARIANT)" DEEPSEEK_EXPERIMENT="$(DEEPSEEK_DEFAULT_EXPERIMENT)" \
 	FROZEN_IMAGE="$(FROZEN_IMAGE)" WARM_REQUESTS="$(WARM_REQUESTS)" \
 	scripts/deepseek_infer.sh "$@"
@@ -127,7 +128,7 @@ deepseek-c2:
 	scripts/deepseek_infer.sh "$@"
 
 deepseek-c3:
-	@MODEL_DIR="$(MODEL_DIR)" TP="$(TP)" DTYPE="$(DTYPE)" MAX_TOKENS="$(MAX_TOKENS)" \
+	@MODEL_DIR="$(MODEL_DIR)" TP="$(TP)" MAX_MODEL_LEN="$(MAX_MODEL_LEN)" DTYPE="$(DTYPE)" MAX_TOKENS="$(MAX_TOKENS)" \
 	VARIANT="$(DEEPSEEK_C3_VARIANT)" DEEPSEEK_EXPERIMENT="$(DEEPSEEK_C3_EXPERIMENT)" \
 	FROZEN_IMAGE="$(FROZEN_IMAGE)" WARM_REQUESTS="$(WARM_REQUESTS)" \
 	scripts/deepseek_infer.sh "$@"

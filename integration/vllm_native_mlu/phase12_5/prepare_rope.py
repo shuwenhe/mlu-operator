@@ -15,7 +15,7 @@ def yarn_get_mscale(scale: float, mscale: float) -> float:
     return 0.1 * mscale * math.log(scale) + 1.0
 
 
-def main(checkpoint: Path, out: Path) -> int:
+def main(checkpoint: Path, out: Path, positions: int = 131) -> int:
     source = checkpoint / "modeling_deepseek.py"
     cfg = json.loads((checkpoint / "config.json").read_text())
     tree = ast.parse(source.read_text())
@@ -43,10 +43,10 @@ def main(checkpoint: Path, out: Path) -> int:
         **params,
     )
     q = torch.zeros((1, 16, 1, cfg["qk_rope_head_dim"]), dtype=torch.bfloat16)
-    cos, sin = rotary(q, seq_len=131)
+    cos, sin = rotary(q, seq_len=positions)
     out.mkdir(parents=True, exist_ok=True)
-    cos[:131].contiguous().view(torch.int16).cpu().numpy().tofile(out / "cos.bin")
-    sin[:131].contiguous().view(torch.int16).cpu().numpy().tofile(out / "sin.bin")
+    cos[:positions].contiguous().view(torch.int16).cpu().numpy().tofile(out / "cos.bin")
+    sin[:positions].contiguous().view(torch.int16).cpu().numpy().tofile(out / "sin.bin")
     scale = (
         1.0
         / math.sqrt(cfg["qk_nope_head_dim"] + cfg["qk_rope_head_dim"])

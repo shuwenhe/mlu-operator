@@ -71,12 +71,13 @@ class NeurXDeepSeekV2ForCausalLMTP8(NeurXDeepSeekV2ForCausalLM):
         cache = vllm_config.cache_config
         if (
             any(getattr(hf, key, None) != value for key, value in expected.items())
-            or cfg.dtype != torch.bfloat16 or not 0 < cfg.max_model_len <= 128
+            or cfg.dtype != torch.bfloat16 or not 0 < cfg.max_model_len <= 161
             or (parallel.tensor_parallel_size, parallel.pipeline_parallel_size,
                 parallel.data_parallel_size) != (TP, 1, 1)
             or cache.enable_prefix_caching or cache.block_size != BLOCK_SIZE
         ):
             raise ValueError("Unsupported native DeepSeek-V2-Lite TP8 configuration")
+        self.max_model_len = cfg.max_model_len
         self.group = get_tp_group()
         self.rank = self.group.rank_in_group
         self.device = torch.device("mlu", torch.mlu.current_device())
@@ -128,9 +129,10 @@ class NeurXDeepSeekV2ForCausalLMTP8(NeurXDeepSeekV2ForCausalLM):
             if len(loaded) != 5291:
                 raise ValueError(f"Unexpected checkpoint parameter count {len(loaded)}")
             rope = Path(os.environ["NATIVE_DEEPSEEK_ROPE"])
+            table_rows = max(131, self.max_model_len)
             cos, sin = (
-                torch.from_file(str(rope / f"{name}.bin"), size=131 * 64, dtype=torch.int16)
-                .view(torch.bfloat16).reshape(131, 64).to(self.device)
+                torch.from_file(str(rope / f"{name}.bin"), size=table_rows * 64, dtype=torch.int16)
+                .view(torch.bfloat16).reshape(table_rows, 64).to(self.device)
                 for name in ("cos", "sin")
             )
             scale = float((rope / "scale.txt").read_text())
@@ -148,7 +150,18 @@ class NeurXDeepSeekV2ForCausalLMTP8(NeurXDeepSeekV2ForCausalLM):
         return loaded
 
     def forward(self, input_ids, positions, intermediate_tensors=None, inputs_embeds=None, **kwargs):
-        result = super().forward(input_ids, positions, intermediate_tensors, inputs_embeds, **kwargs)
+        self.active_attention = None
+        try:
+            result = super().forward(input_ids, positions, intermediate_tensors, inputs_embeds, **kwargs)
+        except Exception as exc:
+            raise RuntimeError(
+                f"TP8 rank {self.rank}, forward {self.forward_sequence}, "
+                f"(layer, first_position, last_position)={self.active_attention}: {exc}"
+            ) from exc
+        if self.pending_logits and self.rank == 0 and os.getenv("NEURX_CONTEXT_TRACE") == "1":
+            layer, first, last = self.active_attention
+            print(json.dumps(dict(rank=self.rank, forward=self.forward_sequence - 1,
+                                  layer=layer, first_position=first, last_position=last)), flush=True)
         if self.fixture and self.pending_logits and self.rank == 0:
             print(json.dumps(dict(stage_c1="native_forward", step=self.forward_sequence - 1,
                                   rows=input_ids.numel(), first_position=positions.flatten()[0].item())),

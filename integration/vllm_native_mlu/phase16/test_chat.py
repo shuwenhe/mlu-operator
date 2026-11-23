@@ -1,4 +1,6 @@
 """CPU-only session tests. Stub responses are never hardware evidence."""
+from contextlib import redirect_stdout
+from io import StringIO
 import tempfile
 from pathlib import Path
 import json
@@ -159,35 +161,38 @@ class ChatTests(unittest.TestCase):
                 self.assertEqual(summary["status"], "error" if fail else "ok")
 
     def test_context_limit_notification_filtering(self):
-        """Verify that 'Context limit: removed...' notifications are filtered from output."""
-        from io import StringIO
-        import re
-        
-        # Test the filtering logic directly
-        context_limit_pattern = re.compile(r"Context limit: removed \d+ oldest complete turn\(s\) from this prompt\.")
-        
-        # Test all variations of the notification pattern are caught
-        test_variations = [
-            "Context limit: removed 1 oldest complete turn(s) from this prompt.",
-            "Context limit: removed 2 oldest complete turn(s) from this prompt.",
-            "Context limit: removed 5 oldest complete turn(s) from this prompt.",
-        ]
-        
-        for variation in test_variations:
-            match = context_limit_pattern.search(variation)
-            self.assertIsNotNone(match, f"Pattern should match: {variation}")
-        
-        # Test that normal messages don't match the filter
-        normal_messages = [
-            "Normal chat message",
-            "DeepSeek: Hello",
-            "Context limit is 128.",  # Different message format
-            "You: What is context?",
-        ]
-        
-        for msg in normal_messages:
-            match = context_limit_pattern.search(msg)
-            self.assertIsNone(match, f"Pattern should NOT match: {msg}")
+        """Exercise the production terminal and transcript, including split notices."""
+        notice = "Context limit: removed 12 oldest complete turn(s) from this prompt."
+        expected = "DeepSeek: 你好 Context limit is 128. Context\n"
+
+        def run(session):
+            session.emit("Context limit: removed 1 oldest complete turn(s) from this prompt.")
+            session.emit("DeepSeek: ", end="")
+            session.emit("你" + notice[:16], end="")
+            session.emit(notice[16:23], end="")
+            session.emit(notice[23:] + "好 ", end="")
+            session.emit("Context limit is 128. ", end="")
+            session.emit("Context", end="")
+            session.emit("")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            worker = NS(pid=12, exitcode=0, is_alive=lambda: False)
+            core = NS(shutdown=Mock(), engine_core=NS(model_executor=NS(
+                workers=[NS(proc=worker) for _ in range(8)])))
+            llm = NS(llm_engine=NS(engine_core=core), collective_rpc=lambda *a, **k: [],
+                     get_tokenizer=Tokenizer)
+            stdout = StringIO()
+            with patch.object(sys, "argv", ["chat", "--model-dir", "mock", "--output-dir", tmp]), \
+                 patch.object(chat, "load_engine", return_value=(llm, None, None, lambda _: None)), \
+                 patch.object(chat.Session, "run", run), redirect_stdout(stdout):
+                chat.main()
+
+            for output in (stdout.getvalue(), (Path(tmp) / "chat_smoke_test.log").read_text()):
+                self.assertIn(expected, output)
+                self.assertNotIn("Context limit: removed", output)
+            filtered = (Path(tmp) / "filtered_notifications.log").read_text()
+            self.assertIn(notice, filtered)
+            self.assertIn("removed 1 oldest", filtered)
 
 
 if __name__ == "__main__":

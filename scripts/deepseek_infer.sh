@@ -27,6 +27,13 @@ model=$(realpath -m "${MODEL_DIR:-$checkpoint}")
 tp=${TP:-8}
 dtype=${DTYPE:-bfloat16}
 max_tokens=${MAX_TOKENS:-32}
+max_model_len=${MAX_MODEL_LEN:-128}
+stock_reference=${STOCK_REFERENCE:-0}
+capture_logits=${CAPTURE_LOGITS:-0}
+extra=()
+[[ "$stock_reference" != 1 ]] || extra+=(--stock-reference)
+[[ "$capture_logits" != 1 ]] || extra+=(--capture-logits)
+[[ ! -v PROMPT_TOKEN_IDS ]] || extra+=(--prompt-token-ids "$PROMPT_TOKEN_IDS")
 warm=${WARM_REQUESTS:-2}
 prompt=${PROMPT:-"Explain tensor parallel inference on MLU in one short paragraph."}
 
@@ -45,8 +52,13 @@ if [[ -z "$experiment" ]]; then
 fi
 [[ "$tp" == 8 && "$dtype" == bfloat16 ]] || reject "DeepSeek requires TP=8 and DTYPE=bfloat16"
 [[ "$image" == "$frozen" ]] || reject "DeepSeek requires the accepted frozen image $frozen"
-[[ "$max_tokens" =~ ^[1-9][0-9]{0,2}$ ]] && ((max_tokens < 128)) ||
-    reject "MAX_TOKENS must be 1–127 and leave room for the prompt in the 128-token context"
+[[ "$max_model_len" =~ ^[1-9][0-9]{0,2}$ ]] && ((max_model_len <= 161)) ||
+    reject "MAX_MODEL_LEN must be 1–161"
+[[ "$max_tokens" =~ ^[1-9][0-9]{0,2}$ ]] && ((max_tokens < max_model_len)) ||
+    reject "MAX_TOKENS must leave room for the prompt in MAX_MODEL_LEN"
+if ((max_model_len > 128)) && [[ "$variant" != stage_c3 || "$mode" == benchmark || "$mode" == probe ]]; then
+    reject "Extended context requires the Stage C.3 inference entry point"
+fi
 case "$variant:$experiment" in
     stage_c1:baseline|stage_c2:output-axis|stage_c3:fused,batched) ;;
     stage_c3:*) reject "Stage C.3 requires DEEPSEEK_EXPERIMENT=fused,batched" ;;
@@ -81,7 +93,8 @@ printf 'Evidence: %s\n' "$run_dir"
 cnmon > "$run_dir/cnmon_before.log" 2>&1
 python3 scripts/deepseek_preflight.py "$run_dir/cnmon_before.log" "$run_dir"
 printf '%s\n' "mode=$mode" "image=$image" "model=$model" "tp=$tp" "dtype=$dtype" \
-    "variant=$variant" "experiment=$experiment" "max_tokens=$max_tokens" | tee "$run_dir/launch.txt"
+    "variant=$variant" "experiment=$experiment" "max_tokens=$max_tokens" "max_model_len=$max_model_len" \
+    "stock_reference=$stock_reference" "capture_logits=$capture_logits" | tee "$run_dir/launch.txt"
 if [[ "$mode" == check ]]; then
     echo "DeepSeek preflight passed."
     exit 0
@@ -115,7 +128,8 @@ else
         --entrypoint /torch/venv3/pytorch_infer/bin/python3 "$image"
         -m integration.vllm_native_mlu.phase15.deepseek_infer
         --model-dir /checkpoint --variant "$variant" --tp "$tp" --dtype "$dtype"
-        --output-dir /results --max-tokens "$max_tokens" --prompt "$prompt" --experiment "$experiment")
+        --output-dir /results --max-tokens "$max_tokens" --prompt "$prompt" --experiment "$experiment"
+        --max-model-len "$max_model_len" "${extra[@]}")
 fi
 
 status=0

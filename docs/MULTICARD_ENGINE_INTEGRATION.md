@@ -72,20 +72,20 @@ Use deterministic worker-side registration through the official installed genera
 ### 2) Real execution path: load -> prefill/decode -> token output
 
 #### End-to-end high-level path
-1. `LLM(...)` 初始化 engine（`llm.py`）。
-2. `LLM.generate(...)` 进入 engine 调度。
-3. MLU worker 由 `vllm_mlu/v1/worker/gpu_worker.py` 选择并构造 `MLUModelRunner`。
-4. `MLUModelRunner.load_model(...)` 加载模型。
-5. 调度阶段提供 request/block/slot 元数据，runner 构造 attention metadata 后执行前向。
-6. 输出 logits 并完成 token 选择（对应 repo 中 [model.py](/app/shuwen/mlu-operator/integration/vllm_native_mlu/phase12_5/model.py) 的 `compute_logits` 合约）。
+1. `LLM(...)` initializes engine (`llm.py`).
+2. `LLM.generate(...)` enters engine scheduling.
+3. MLU worker is selected and constructed via `vllm_mlu/v1/worker/gpu_worker.py` as `MLUModelRunner`.
+4. `MLUModelRunner.load_model(...)` loads the model.
+5. Scheduling stage provides request/block/slot metadata; runner constructs attention metadata and executes forward.
+6. Output logits and complete token selection (corresponding to `compute_logits` contract in repo [model.py](/app/shuwen/mlu-operator/integration/vllm_native_mlu/phase12_5/model.py)).
 
 #### Prefill/decode metadata flow (actual contracts)
-- Repo native model侧读取：
+- Repo native model-side reading:
   - `get_forward_context().attn_metadata`
   - `vllm_mlu...get_common_metadata()`
   - 依赖 `block_table_tensor`、`slot_mapping`
   - 位置： [model.py](/app/shuwen/mlu-operator/integration/vllm_native_mlu/phase12_5/model.py)
-- Vendor side metadata construction/传递：
+- Vendor side metadata construction/passing:
   - `vllm_mlu/v1/attention/backends/utils.py` (`get_common_metadata`, `MLUCommonAttentionMetadata`)
   - `vllm_mlu/v1/worker/gpu_model_runner.py` (`_get_slot_mappings`, block table/slot mapping wiring)
 
@@ -93,21 +93,21 @@ Use deterministic worker-side registration through the official installed genera
 
 ### 3) TP process group, communicator, and CNCL ordering
 
-- TP init contract（repo probes已验证）：
+- TP init contract (verified by repo probes):
   - `init_distributed_environment(..., backend="cncl")`
   - `initialize_model_parallel(..., backend="cncl")`
   - 见 [cncl_probe.py](/app/shuwen/mlu-operator/integration/vllm_native_mlu/phase13_1/cncl_probe.py), [probe.py](/app/shuwen/mlu-operator/integration/vllm_native_mlu/phase13_4/probe.py)
-- Communicator实现：
+- Communicator implementation:
   - `MLUCommunicator` in `vllm_mlu/distributed/device_communicators/mlu_communicator.py`
   - 暴露 `all_reduce / all_gather / reduce_scatter`，底层 `torch.distributed` + CNCL group
 
-结论：Phase 13.5 的 ordered O 必须嵌入现有 TP collective 顺序，不得破坏 scheduler/runner 已有 collective 序。
+Conclusion: Phase 13.5's ordered O must be embedded in existing TP collective order and must not disrupt the scheduler/runner's existing collective sequence.
 
 ### 4) KV cache lifecycle (allocation/write/read/free/reuse)
 
-- Scheduler 持有 `KVCacheManager`（`vllm/v1/core/sched/scheduler.py` -> `KVCacheManager`）。
+- Scheduler holds `KVCacheManager` (`vllm/v1/core/sched/scheduler.py` -> `KVCacheManager`).
 - `KVCacheManager.free(...)` 是 release/reclamation contract（`vllm/v1/core/kv_cache_manager.py`）。
-- Worker runner 持有 slot mapping / block table，执行 prefill/decode 期间 cache addressing：
+- Worker runner holds slot mapping / block table, cache addressing during prefill/decode:
   - `_get_slot_mappings(...)`
   - block table commit / mapping usage
   - `gpu_model_runner.py` 中多处 `slot_mapping` / `block_table` 路径（inventory 已记录行号）。
@@ -116,36 +116,36 @@ Use deterministic worker-side registration through the official installed genera
   - `cache.read(metadata.block_table_tensor[...], span.length)`
   - 见 [model.py](/app/shuwen/mlu-operator/integration/vllm_native_mlu/phase12_5/model.py)
 
-结论：分布式 KV 生命周期集成边界已明确：scheduler 分配与回收、runner metadata 编排、model 消费 metadata。Phase 13.5 不应新建独立 cache manager。
+Conclusion: Distributed KV lifecycle integration boundary is clear: scheduler allocation and reclamation, runner metadata orchestration, model metadata consumption. Phase 13.5 should not create an independent cache manager.
 
 ### 5) Ordered O (Phase 13.3.3) integration boundary
 
-现有验证实现位于 replay/probe 路径：
+Existing verification implementation is in replay/probe path:
 - [mla.py](/app/shuwen/mlu-operator/integration/vllm_native_mlu/phase13_4/mla.py): ordered FP32 accumulation + BF16 cast boundary evidence
 - [probe.py](/app/shuwen/mlu-operator/integration/vllm_native_mlu/phase13_4/probe.py), [full_model.py](/app/shuwen/mlu-operator/integration/vllm_native_mlu/phase13_4/full_model.py): gate replay
 
-生产集成边界（必须保持 Vendor contract）：
-1. 仅替换 attention O 聚合路径内部数值策略（local partial -> CNCL sum -> BF16 cast -> residual）。
-2. 输入输出张量形状、dtype、slot/block metadata 接口保持与 worker/model 现有路径一致。
-3. 不修改 TP=1 生产路径行为（只能在 TP>1 条件下启用）。
+Production integration boundary (must maintain Vendor contract):
+1. Only replace internal numerical strategy in attention O aggregation path (local partial -> CNCL sum -> BF16 cast -> residual).
+2. Input/output tensor shapes, dtype, and slot/block metadata interfaces remain consistent with existing worker/model paths.
+3. Do not modify TP=1 production path behavior (can only be enabled under TP>1 conditions).
 
 ### 6) TP=1 regression protection boundary
 
-- TP=1 回归入口已存在于历史 acceptance harness（例如 [run_acceptance.py](/app/shuwen/mlu-operator/integration/vllm_native_mlu/phase12_6/run_acceptance.py) 与 13.x probes）。
-- 强制要求：
-  - TP=1 代码路径逻辑不变（功能与数值基线冻结）。
-  - TP=2/4/8 新集成必须被明确条件门控。
-  - 任何 TP=1 偏移应直接判定 Phase13.5 BLOCKED。
+- TP=1 regression entry points already exist in historical acceptance harnesses (e.g., [run_acceptance.py](/app/shuwen/mlu-operator/integration/vllm_native_mlu/phase12_6/run_acceptance.py) and 13.x probes).
+- Mandatory requirements:
+  - TP=1 code path logic unchanged (functionality and numerical baseline frozen).
+  - TP=2/4/8 new integration must be explicitly gated by conditions.
+  - Any TP=1 deviation should directly determine Phase 13.5 BLOCKED.
 
 ### 7) Blockers / risks identified
 
-1. Vendor source ABI/签名风险  
-   - `vllm_mlu` worker/runner 接口复杂且版本绑定，若直接侵入内部私有结构风险高。  
-   - 缓解：仅在现有 metadata + runner 调用边界做最小替换。
+1. Vendor source ABI/signature risk  
+   - `vllm_mlu` worker/runner interface is complex and version-dependent; risk of directly accessing internal private structures is high.  
+   - Mitigation: Only do minimal replacement at existing metadata + runner call boundary.
 
 2. Collective ordering risk  
-   - ordered O 改动若改变 reduce/allgather 的相对顺序，存在死锁/数值漂移风险。  
-   - 缓解：沿用现有 communicator 调用顺序，新增验证覆盖 invalid metadata 注入场景。
+   - If ordered O changes modify the relative order of reduce/allgather, there is risk of deadlock/numerical drift.  
+   - Mitigation: Use existing communicator call order; add validation coverage for invalid metadata injection scenarios.
 
 3. KV metadata consistency risk  
    - prefill/decode mixed batching 依赖 slot mapping 与 block table 一致性。  

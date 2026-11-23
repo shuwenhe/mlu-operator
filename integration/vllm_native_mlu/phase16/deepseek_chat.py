@@ -5,6 +5,7 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import signal
 from statistics import mean
 import sys
@@ -15,6 +16,25 @@ class ContextOverflow(ValueError):
     def __init__(self, prompt_tokens, message):
         super().__init__(message)
         self.prompt_tokens = prompt_tokens
+
+
+NOTICE_PREFIX = "Context limit: removed "
+NOTICE_SUFFIX = " oldest complete turn(s) from this prompt."
+NOTICE_PATTERN = re.compile(re.escape(NOTICE_PREFIX) + r"[0-9]+" + re.escape(NOTICE_SUFFIX))
+
+
+def split_partial_notice(text):
+    """Hold only a trailing fragment that could become a notice."""
+    offset = text.rfind(NOTICE_PREFIX)
+    if offset >= 0:
+        tail = text[offset + len(NOTICE_PREFIX):]
+        digits = re.match(r"[0-9]*", tail).end()
+        if not tail or (digits and NOTICE_SUFFIX.startswith(tail[digits:])):
+            return text[:offset], text[offset:]
+    for length in range(min(len(text), len(NOTICE_PREFIX) - 1), 0, -1):
+        if text.endswith(NOTICE_PREFIX[:length]):
+            return text[:-length], text[-length:]
+    return text, ""
 
 
 def fit_history(tokenizer, history, text, limit, budget, truncate):
@@ -254,6 +274,7 @@ def load_engine(args):
     from ..phase15.stage_c3.model import StageC3Model
     from ..phase15.stage_c3.moe import TunableDecoder
     from ..phase15.deepseek_infer import verify_workers
+    from ..phase15.tp8.context import prepare_context
 
     if not torch.mlu.is_available() or torch.mlu.device_count() != 8:
         raise RuntimeError("Native chat requires exactly eight usable MLU devices")
@@ -264,6 +285,7 @@ def load_engine(args):
     os.environ.update(NEURX_C2_VARIANT="candidate", NEURX_C3_EXPERIMENT="fused,batched",
                       NEURX_C2_PROFILE="0", NEURX_C2_CAPTURE_LOGITS="0", NEURX_C3_PROFILE="0")
     os.environ.setdefault("VLLM_WORKER_SHUTDOWN_TIMEOUT_SECONDS", "30")
+    prepare_context(args.model_dir, args.max_model_len, args.output_dir)
     plugin.register()
     llm = LLM(model=args.model_dir, trust_remote_code=True, dtype="bfloat16", tensor_parallel_size=8,
               distributed_executor_backend="mp", hf_overrides={"architectures": [plugin.ARCH]},
@@ -291,28 +313,36 @@ def main():
     parser.add_argument("--history-policy", choices=("truncate", "reject"), default="truncate")
     parser.add_argument("--system", default="")
     args = parser.parse_args()
-    if not 0 < args.max_tokens < args.max_model_len <= 128 or not 0 <= args.temperature <= 2:
-        parser.error("Accepted C.3 requires 0 < MAX_TOKENS < MAX_MODEL_LEN <= 128 and TEMPERATURE in [0, 2]")
+    if not 0 < args.max_tokens < args.max_model_len <= 161 or not 0 <= args.temperature <= 2:
+        parser.error("Accepted C.3 requires 0 < MAX_TOKENS < MAX_MODEL_LEN <= 161 and TEMPERATURE in [0, 2]")
     args.output_dir.mkdir(parents=True, exist_ok=True)
     filtered_messages_log = args.output_dir / "filtered_notifications.log"
     with (args.output_dir / "chat_smoke_test.log").open("w", encoding="utf-8", buffering=1) as transcript:
+        pending = ""
+
+        def write(text):
+            if text:
+                print(text, end="", flush=True)
+                transcript.write(text)
+                transcript.flush()
+
         def emit(text, end="\n"):
-            import re
-            # Suppress internal context-management notifications from interactive console
-            # Pattern: "Context limit: removed N oldest complete turn(s) from this prompt."
-            context_limit_pattern = re.compile(r"Context limit: removed \d+ oldest complete turn\(s\) from this prompt\.")
-            if context_limit_pattern.search(text):
-                # Log the filtered message for diagnostic purposes
-                with filtered_messages_log.open("a", encoding="utf-8") as f:
-                    f.write(f"[filtered] {text}\n")
-                    f.flush()
-                # Do not emit to interactive console
-                return
-            print(text, end=end, flush=True)
-            transcript.write(text + end)
-            transcript.flush()
+            nonlocal pending
+            text = pending + text
+            notices = NOTICE_PATTERN.findall(text)
+            if notices:
+                with filtered_messages_log.open("a", encoding="utf-8") as log:
+                    log.writelines(f"[filtered] {notice}\n" for notice in notices)
+                text = NOTICE_PATTERN.sub("", text)
+                if not text:
+                    end = ""
+            visible, pending = split_partial_notice(text + end)
+            write(visible)
 
         def read(prompt):
+            nonlocal pending
+            write(pending)
+            pending = ""
             result = input(prompt)
             transcript.write(prompt + result + "\n")
             return result

@@ -16,7 +16,7 @@ class RequestSpan:
     blocks: int
 
 
-def validate_batch(metadata, request_ids, positions, block_size, num_blocks):
+def validate_batch(metadata, request_ids, positions, block_size, num_blocks, *, max_length=131):
     """Validate active metadata before any device cache writes.
 
     Only small scheduler metadata is read back. Cache buffers and activations
@@ -45,12 +45,12 @@ def validate_batch(metadata, request_ids, positions, block_size, num_blocks):
     block_rows = table[:active].tolist()
     used = set()
     result = []
-    for i, (request, length) in enumerate(zip(request_ids, lengths[:active].tolist(), strict=True)):
+    for i, (request, length) in enumerate(zip(request_ids, lengths[:active].tolist())):
         start, end = starts[i:i + 2]
         count = end - start
         needed = (length + block_size - 1) // block_size
         blocks = block_rows[i][:needed]
-        if not 0 < count <= length <= 131 or count > 128 or len(blocks) != needed:
+        if not 0 < count <= length <= max_length or count > 128 or len(blocks) != needed:
             raise ValueError(f"{request} has invalid token or context length")
         owned = set(blocks)
         if len(owned) != needed or used.intersection(owned) or any(

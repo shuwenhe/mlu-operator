@@ -2,6 +2,10 @@
 #include <cnrt.h>
 #include <stdint.h>
 
+#ifndef NATIVE_KV_MAX_TOKENS
+#define NATIVE_KV_MAX_TOKENS 131
+#endif
+
 namespace {
 constexpr int heads = 16;
 constexpr int key_width = 192;
@@ -49,7 +53,7 @@ extern "C" cnrtRet_t phase12_paged_kv(cnrtQueue_t queue, uint16_t *page_k, uint1
     uint16_t *linear_k, uint16_t *linear_v, const int32_t *map,
     int tokens, int block_size, int slots, int write) {
     if (!queue || !page_k || !page_v || !linear_k || !linear_v || !map ||
-        tokens <= 0 || tokens > 131 || block_size <= 0 || slots < block_size ||
+        tokens <= 0 || tokens > NATIVE_KV_MAX_TOKENS || tokens > slots || block_size <= 0 || slots < block_size ||
         slots % block_size != 0 || (write != 0 && write != 1))
         return cnrtErrorArgsInvalid;
     const cnrtDim3_t grid = {32, 1, 1};

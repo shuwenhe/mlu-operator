@@ -196,9 +196,8 @@ class NeurXDeepSeekV2ForCausalLM(torch.nn.Module):
             if any(len(layer.kv_cache)!=2 for layer in self.layers):
                 raise ValueError("Worker KV cache not bound")
             blocks = self.layers[0].kv_cache[0].shape[0]//16
-            spans_ = validate_batch(metadata,range(metadata.num_reqs),positions.int(),16,blocks)
-            if any(span.length>128 for span in spans_):
-                raise ValueError("Context exceeds max_model_len")
+            spans_ = validate_batch(metadata, range(metadata.num_reqs), positions.int(), 16, blocks,
+                                    max_length=getattr(self, "max_model_len", 128))
         except (ValueError, AttributeError, IndexError, TypeError) as exc:
             error = str(exc)
         failure = torch.tensor([int(error is not None)],device=self.device,dtype=torch.int32)
@@ -286,6 +285,7 @@ class NeurXDeepSeekV2ForCausalLM(torch.nn.Module):
                 if len(spans_)==1:
                     self.capture(self.forward_sequence,None,"embedding",x)
                 for number,(layer,worker) in enumerate(zip(self.mla,self.layers)):
+                    self.active_attention = (number, total - (end - start), total - 1)
                     page = WorkerCache(self.ops,worker.kv_cache)
                     self.ops.timings.clear()
                     q,k,v,pos = layer.project(x,total-(end-start))

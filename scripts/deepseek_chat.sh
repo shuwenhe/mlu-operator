@@ -22,8 +22,8 @@ reject() { echo "$*" >&2; exit 2; }
 [[ "$tp" == "8" && "$dtype" == "bfloat16" ]] || reject "deepseek-chat requires TP=8 and DTYPE=bfloat16"
 [[ "$image" == "$frozen" ]] || reject "deepseek-chat requires frozen image $frozen"
 [[ "$max_tokens" =~ ^[1-9][0-9]{0,3}$ ]] || reject "MAX_TOKENS must be a positive integer"
-[[ "$max_model_len" =~ ^[1-9][0-9]{0,2}$ ]] && ((max_tokens < max_model_len && max_model_len <= 128)) ||
-    reject "Frozen Stage C.3 requires 0 < MAX_TOKENS < MAX_MODEL_LEN <= 128"
+[[ "$max_model_len" =~ ^[1-9][0-9]{0,2}$ ]] && ((max_tokens < max_model_len && max_model_len <= 161)) ||
+    reject "Frozen Stage C.3 requires 0 < MAX_TOKENS < MAX_MODEL_LEN <= 161"
 [[ "$temperature" =~ ^[0-9]+(\.[0-9]+)?$ ]] || reject "TEMPERATURE must be a non-negative number"
 
 for command in docker cnmon python3; do

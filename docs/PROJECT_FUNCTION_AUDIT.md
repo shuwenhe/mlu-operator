@@ -1,0 +1,129 @@
+# Project Function Audit
+
+Audit date 2026-11-23（Asia/Shanghai）。Scope is `/app/shuwen/mlu-operator`，Model only uses `/app/shuwen/model/DeepSeek-V2-Lite`。Historical PASS in this document only applies to corresponding versions, configurations, use cases, and reference data.
+
+## Status Criteria and Baseline
+
+| Status | Determination Basis |
+|---|---|
+| Implemented | Source code exists and reachable call paths are verified. Design documents and placeholder reports listed separately |
+| Compiled | 有构建退出Status或可定位的历史构建记录。Python 源码检查、主机对象生成、设备对象和可执行文件链接分别看待 |
+| Unit tests passed | Only covers actual executed CPU, static, Mock, or isolated tests |
+| Real hardware passed | Has device model, actual operation, result and exit evidence; scope divided by operator, communication, scheduling or session |
+| Full model inference passed | Has real checkpoint loading, complete forward, prefill, per-token decode, and generation evidence. Generation, per-layer numerical, and product acceptance judged separately |
+
+- Final read branch `main`, audit source baseline `8e134ac`. Document organization was in working directory at audit start; subsequently observed it entered this commit; `git status --porcelain` empty before report writing. Audit made no code commits.
+- This machine `cnmon info` returns `CNDEV_ERROR_NO_DRIVER`, no `/dev/cambricon*`, `cncc` not in PATH. Current real hardware re-run and device-side recompilation both **BLOCKED**. No Docker device tasks run, no intervention in occupied processes, no modification to Vendor, weights, or existing evidence.
+- Read-only check of checkpoint index and four safetensors headers. 5,291 unique BF16 tensor shard mapping consistent, file tail length matching, total file bytes 31,413,626,576. This check covers metadata and file length; weight loading proven separately by historical runs. No full recalculation of model content hash this time.
+- 本次从空临时构建目录执行 `make cpu BUILD_CPU_DIR=<临时目录>`、`PYTHONDONTWRITEBYTECODE=1 make test BUILD_CPU_DIR=<临时目录>`，均退出 0。默认构建的 CTest `gemm_reference` 1/1 PASS（约 150 秒）；另以 `cmake -S . -B <另一临时目录> -DCMAKE_BUILD_TYPE=Release`、`cmake --build <另一临时目录> --parallel`、同一 `make test` 复核，CTest 1/1 PASS（7.33 秒）。静态扫描解析 152 个 Git 跟踪 Python 文件，48 个脚本通过 `bash -n`。本机单独运行 `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest -v integration.vllm_native_mlu.phase15.tp8.test_contracts` 时，包导入缺 `torch`，因此本次该套原生集成单测 BLOCKED；Stage C.1 [冻结 SDK 14 项历史单测](../artifacts/logs/phase15/stage_c1/unit.log)独立保留。
+- 本次重新运行 `bash scripts/test_deepseek_routing.sh`、`PYTHONDONTWRITEBYTECODE=1 bash scripts/test_deepseek_chat_mock.sh` 和 `make deepseek-verify`。路由静态检查、12 项 Chat CPU 测试及四种非法配置拒绝、Stage C.1–C.3 源码与证据哈希均 **PASS**。Stage B2 清单 9 个实体文件 SHA-256 也一致；伪路径 `frozen_image_identifier` 单独按归档镜像标识判读。
+- 记录的固定 SDK 镜像为 `sha256:8e653daf38cb9cdd7a2120f9f7dcddcbe50677ac5c1c6e8d1243fa9576e26756`。历史设备路径为 MLU590-M9 / `mtp_592`。Stage D 旧清单中活跃 README、Makefile 和测试路径可能随产品变更漂移，历史产物与实时源码的哈希范围有别。[Stage D 清单核对](../artifacts/logs/phase15/stage_d/historical_manifest_verification.log) · [Phase 16 活跃树比对](../artifacts/logs/phase16/stage_d_live_tree_verification.log)
+
+<a id="phase-coverage"></a>
+
+## Phase 1–16.3 and Stage B2
+
+表中“复现”是命令、脚本或包含实际参数的原始说明。需要 SDK、设备或冻结 fixture 的命令在本次环境为 BLOCKED；CPU 静态重跑见上节。早期文档有两套编号语境，Phase 1–4 按设备开发计划，Phase 5–11 按模型集成阶段。
+
+| Phase | Implementation, Compilation, Testing and Historical Results | Source Code, Reproduction and Evidence |
+|---|---|---|
+| 1 | Read-only environment and hardware inventory have records. Early workspace lacked device nodes and was occupied; hardware execution BLOCKED | [Device Development Plan](OPERATOR_DESIGN.md#mlu590-m9-eight-card-operator-plan) · [Hardware Inventory](HARDWARE_INVENTORY.md); commands `cnmon info`, `scripts/environment_check.sh` |
+| 2 | Admin and device allocation are operational processes. Early authorization was BLOCKED; subsequent independent device running records exist; permanent authorization and personal clearance UNKNOWN | [Device Development Plan](OPERATOR_DESIGN.md#mlu590-m9-eight-card-operator-plan) · [Eight-Card Inventory](../artifacts/logs/eight_card_inventory.log) |
+| 3 | Isolated SDK build path exists. Old Ubuntu 20.04 SDK link FAIL; under compatible fixed image, historical objects and links PASS | [Build Script](../scripts/build.sh) · [Original Link Failure](../artifacts/logs/native-link.log) · [Compatible SDK Build](../artifacts/logs/phase15/stage_d/sdk_build.log); `make mlu`, `make native` |
+| 4 | CNRT device selection, queuing, copying, synchronization and cleanup have real single-card and eight-card smoke PASS; smoke at this phase only verifies running foundation | [Probe Source](../probes) · [First Multi-Card Attempt](../artifacts/logs/cnrt_multi_card_first_attempt.log) · [Multi-Card Smoke](../artifacts/logs/cnrt_multi_card.log); [Commands](OPERATOR_DESIGN.md#mlu590-m9-eight-card-operator-plan) |
+| 5 | GEMM/RMSNorm native compilation and hardware use cases PASS. DeepSeek projection, KV chain, RoPE and MLA subgraph have real weight/fixture board results; full model not yet passed gate | [GEMM](../operators/gemm/native) · [RMSNorm](../operators/rmsnorm/native) · [Phase 5 Integration](../integration/deepseek/phase5) · [Reproduction and Accuracy](DEEPSEEK_V2_LITE_E2E_ACCEPTANCE.md#phase-5-mlu-integration) · [Projection Log](../artifacts/logs/phase5_projection_run.log) · [RMSNorm Data](../artifacts/logs/rmsnorm_mlu8_accuracy.csv) |
+| 6 | Native Worker, weight registration, queue/memory and explicit Native/CNNL dispatch Implemented; board R1–R5 PASS. R6 actually executes Layer 0; reference MLA and host element-wise paths participate; historical oracle 404 final mismatches; numerical FAIL | [Runtime](../runtime/native/runtime.cpp) · [Dispatch](../runtime/native/dispatch.cpp) · [Build and r12/r34/r5/r6 Commands](MLU_RUNTIME_IMPLEMENTATION.md) · [R6 Original Log](../artifacts/logs/runtime_r6_reference_mla.log) |
+| 7 | Real weight Layer 0, single-layer prefill/decode and numerical diagnosis Implemented; hardware execution PASS; extended PyTorch precision matrix FAIL. BF16 residual addition can align with same input; FFN or earlier boundary still mismatch | [Script](../runtime/native/phase7) · [Accuracy and Reproduction Guide](LAYER0_RESIDUAL_ROOT_CAUSE.md) · [Real Run](../artifacts/logs/phase7_hardware.log) · [Per-Layer CSV](../artifacts/logs/phase7_layer0_accuracy.csv) |
+| 8, 8.1, 8.2 | AVX2 sequential GEMM and RMSNorm/attention diagnosis actual compilation and run; Phase 8.1 seven projection matched input passed; extended Layer 0 gate FAIL. 8.2 closed some RMSNorm/precision boundaries; still retain reference attention or unclosed cases. Phase 9/10 provides subsequent native attention gate | [Candidate Build/Reproduction](../runtime/native/phase8/build_candidate.sh) · [8.2 Replay](../runtime/native/phase82/replay_matrix.sh) · [8.1 Run](../artifacts/logs/phase8_1_hardware.log) · [8.2 Summary](../artifacts/logs/phase8_2_summary.log) |
+| 9, 9.1/9.1.2, 9.2, 9.3, 9.4 | QK, Softmax, AV, BF16/FP16 correction chain all have real device evidence. Historical FP16 original chain FAIL; Phase 9.4 after correction frozen matrix PASS. Item-by-item accuracy see table below | [Source Code and Device Testing](../runtime/native/phase9) · [9.4 Build](../runtime/native/phase9/softmax_fp16/build_chain.sh) · [9.4 Board](../artifacts/logs/phase9_4_softmax_hardware.log) |
+| 10 | Native materialized MLA, device KV append/read, prefill and continuous decode, reset/reuse; real card 0 total 28 configurations PASS. Layer 0 fixture, not 27-layer model gate | [MLA Implementation](../runtime/native/phase10/mla.cpp) · [build/run_matrix and Results](NATIVE_KV_CACHE.md#phase10-hardware-acceptance) · [Decode Log](../artifacts/logs/phase10_decode_hardware.log) |
+| 11, 11.5 | Single-card independent native Runner loads BF16 original checkpoint, runs 27 layers and generates 32 greedy IDs same as PyTorch twice. Phase 11 complete intermediate tensor precision FAIL. 11.5 corrects FP32 router and passes captured matched input checks; cannot directly rewrite this sub-item as Phase 11 full matrix PASS | [Model Source](../runtime/native/phase11/model_run.cpp) · [Commands and Metrics](DEEPSEEK_V2_LITE_E2E_ACCEPTANCE.md#phase11-deepseek-v2-lite-integration) · [11 Original Log](../artifacts/logs/phase11_hardware.log) · [11.5 Hardware Log](../artifacts/logs/phase11_5_router_hardware.log) |
+| 12, 12.3, 12.4 | Vendor API/registration, native CustomOp, paged cache, scheduler metadata, per-layer cache spec each implemented with board results. Original Vendor offline generation and native CustomOp numerical probe are two types of evidence; early probes do not prove entire model uses native path | [Implementation Directory](../integration/vllm_native_mlu) · [Reproduction and Phase Report](PHASE12_MODEL_AND_SCHEDULER.md) · [Vendor/CustomOp](VLLM_MLU_BACKEND_ARCHITECTURE.md) · [12.4 Binding Log](../artifacts/logs/phase12_4_model_binding_hardware.log) |
+| 12.5.1–12.5.4 | Real worker registration, cache binding, full model forward and continuous scheduling connected sequentially. 12.5.3 overall numerical still FAIL; 12.5.4 after YaRN scale alignment hardware numerical PASS; 27 layers and logits reach frozen threshold; 20/20 greedy ID; incremental decode and batch scheduling passed | [Model Source](../integration/vllm_native_mlu/phase12_5/model.py) · [Phase Commands/Evidence](PHASE12_PRODUCTION_ACCEPTANCE.md) · [12.5.4 Log](../artifacts/logs/phase12_5_4_hardware.log) · [logits CSV](../artifacts/logs/phase12_5_4_logits_accuracy.csv) |
+| 12.6 | Single-card concurrency and 1/7/17/65 context PASS; 3609 seconds 1380/1380 success. 128 input plus at least 1 output exceeds constraint. prefix reuse/cancellation/explicit eviction coverage insufficient; original report KV and performance gate BLOCKED | [Run Entry](../integration/vllm_native_mlu/phase12_6/run_acceptance.py) · [Per-Sample](../artifacts/logs/phase12_6_reliability_1h.csv) · [Summary](../artifacts/logs/phase12_6_reliability_1h_summary.json) · [Performance CSV](../artifacts/logs/performance.csv) |
+| 13.1, 13.2 | Vendor CNCL communication PASS; TP=1/2/4/8 Column/Row Linear; real weight sharding and isolated accuracy/performance have board evidence. Generic Row SUM pass cannot imply MLA O accuracy pass | [Run and Reproduction](TENSOR_PARALLEL_LINEAR.md) · [13.1 Log](../artifacts/logs/phase13_1_cncl_final.log) · [13.2 Log](../artifacts/logs/phase13_2_hardware.log) |
+| 13.3.1–13.3.3 | MLA TP design, checkpoint and KV layout reviewed and partially implemented. Generic Row SUM frozen O tolerance FAIL; Ordered O and full-K output-axis O TP=1/2/4/8 isolated hardware PASS; Ordered path 720 comparisons zero bit difference. Deferred fold to TP2 FAIL | [Implementation and run_probe.sh Reproduction](TENSOR_PARALLEL_MLA.md#phase13-3-3-implementation) · [Ordered Accuracy](../artifacts/logs/phase13_3_3/accuracy.csv) · [Output-axis Accuracy](../artifacts/logs/phase13_3_3/output_axis/accuracy.csv) |
+| 13.4 | Corrected fixture eight-card 27-layer independent replay numerical gate PASS; real device weight reading and generation; paged allocation and calls still replay verification; cannot replace Vendor scheduler end-to-end evidence | [Replay Source](../integration/vllm_native_mlu/phase13_4/full_model.py) · [Reproduction/Comparison Scope](TENSOR_PARALLEL_MLA.md#phase13-4-final-evidence-closure) · [closure3 JSON](../artifacts/logs/phase13_4/corrected_replay_closure/closure3_summary.json) |
+| 13.5.1–13.5.4 | Vendor engine production wiring exploration; TP1 protection and call audit have records; 13.5.3 worker process registration blocked; 13.5.4 two ranks enter constructor then frozen TP1 constraint blocks TP2; original path overall BLOCKED | [Implementation](../integration/vllm_native_mlu/phase13_5_4) · [Architecture and Operational Flow](MULTICARD_ENGINE_INTEGRATION.md) · [13.5.2](../artifacts/logs/phase13_5_2/final_gate_report.json) · [13.5.3](../artifacts/logs/phase13_5_3/final_gate_report.json) · [13.5.4](../artifacts/logs/phase13_5_4/tp2.log) |
+| 14.1 | Real TP2 `LLM.generate()`, KV, prefill/decode; 1628 boundary comparisons; 96 extended logits comparisons and fixed token PASS. After original fault parent process ZeroMQ destruction hung; lifecycle overall BLOCKED; performance baseline not run | [Source](../integration/vllm_native_mlu/phase14_1/engine.py) · [Reproduction](MULTICARD_ENGINE_INTEGRATION.md#phase14-1-implementation) · [gate JSON](../artifacts/logs/phase14_1/final_gate_report.json) |
+| 14.2 | Independent EngineCore TP2 normal lifecycle 10/10; real inference; frozen logits; token; worker exit and FD/thread boundary stable PASS. Only release recovery mode covered by archives; cannot extend to TP8 fault or long-duration acceptance | [Lifecycle Implementation](../integration/vllm_native_mlu/phase14_2/executor.py) · [Reproduction and Evidence](ENGINE_LIFECYCLE.md) · [Ten-Round CSV](../artifacts/logs/phase14_2/repeated_lifecycle/run_20261122_204946/repeated_lifecycle.csv) |
+| 15 A, B | A is baseline inventory, architecture and frozen gate; B is eight-card probe; CNCL and resource reclamation PASS; does not involve model forward | [Baseline and Commands](phase15_gate_plan.md) · [B Communication Probe](../artifacts/logs/phase15/stage_b/cncl_tp8_probe.py) · [B Report](../artifacts/logs/phase15/stage_b/stage_b_report.md) |
+| 15 B2 | Vendor TP executor 的真实八卡通信和三次生命周期 PASS。首次强制终止 FAIL 保留。该 harness 无生成调用，因此完整推理不在 B2 门槛内 | [B2 源码](../integration/vllm_native_mlu/phase15/vendor_executor_tp8_acceptance.py) · [首次失败](../artifacts/logs/phase15/stage_b2/failed_run_20261122_225834/final_report.md) · [成功报告和命令线索](../artifacts/logs/phase15/stage_b2/final_report.md) |
+| 15 C、C.1–C.3 | 初版 Stage C 初始化/模型加载 FAIL。随后 C.1 真实 TP8 全模型、C.2 output-axis、C.3 fused/batched MoE 均有真实完整生成 PASS 和分项精度门槛 | [初版失败](../artifacts/logs/phase15/stage_c/stage_c_final_report.md) · [TP8 模型](../integration/vllm_native_mlu/phase15/tp8/model.py) · [C.1](../artifacts/logs/phase15/stage_c1/final_report.md) · [C.2](../artifacts/logs/phase15/stage_c2/final_report.md) · [C.3](../artifacts/logs/phase15/stage_c3/final_report.md) · [make 复现](STAGE_D_REPRODUCIBILITY.md) |
+| 15 D | 默认产品历史实跑 PASS。后续路由修复静态 PASS，后续预检占用 BLOCKED；另一归档加载阶段失败。三个结论属于独立尝试 | [Makefile](../Makefile) · [产品 launcher](../scripts/deepseek_infer.sh) · [历史 PASS](../artifacts/logs/phase15/stage_d/final_report.md) · [后续 BLOCKED](../artifacts/logs/phase15/stage_d/final_acceptance_report.md) · [KV 初始化 FAIL](../artifacts/logs/deepseek/deepseek_inference_verification_report.md) |
+| 16 | REPL、真实 DELTA、历史、reset/stats、退出和 Ctrl+C 有真机多轮 PASS。最初 tokenizer 映射失败和后续占用拒绝保留 | [Chat 源码](../integration/vllm_native_mlu/phase16/deepseek_chat.py) · [launcher](../scripts/deepseek_chat.sh) · `make deepseek-chat MAX_TOKENS=8 TEMPERATURE=0` · [真实结果及命令](../artifacts/logs/phase16/test_results.md) |
+| 16.1、16.2 | Git 树与可取证的报告未能分离出独立编号对应的正式入口和验收闭环，编号级结果 UNKNOWN。已知同阶段的温控、128 token、历史裁剪和终端生命周期按实际代码及证据归 16/16.3；不反推两个编号均 PASS | [Phase 16 实现](../artifacts/logs/phase16/implementation_report.md) · [测试清单](../artifacts/logs/phase16/test_results.md) · [16.3 根因](../artifacts/logs/phase16/phase16_3/PHASE16_3_ROOT_CAUSE_AUDIT.md) |
+| 16.3 | 原 tokenizer/EOS、结构化 role header 边界、取消和上下文预算 CPU PASS；正式指定 run 被八卡占用阻塞。另有符合 role_boundary 字段的八卡真实会话，可证明该行为出现过，缺少逐次运行与 16.3 冻结源码的完整绑定 | [CPU 测试入口](../scripts/test_deepseek_chat_mock.sh) · [16.3 验收](../artifacts/logs/phase16/phase16_3/PHASE16_3_ACCEPTANCE.md) · [预检](../artifacts/logs/phase16/phase16_3/hardware/preflight_recheck.log) · [另一次会话请求 CSV](../artifacts/logs/phase16/runs/chat.BXuog9ba/interactive_requests.csv) |
+
+<a id="operator-evidence"></a>
+
+## Core Operators and Execution Chain
+
+Phase 9–12 的数值容差多用 `abs(x–ref) <= 1e-5 + 1e-5 * abs(ref)`，位级检查仅用于具体低精度边界；诊断 raw FP32 和整模型 logits 应分别读各自参考。
+
+| 功能 | 实现与数值结果 | 复现及一手证据 |
+|---|---|---|
+| QK | head-major K，192 维，FP32 累加，低精度转换与因果 mask。9.1.2 production 32 个 case 的第一轮转换、scaled、masked 精确；raw FP32 对 FP64 rounded 有 22 个超差、对不同 FP32 oracle 有 160 个，属于诊断比较 | [attention_qk.mlu](../runtime/native/phase9/attention_qk.mlu) · [build_qk.sh](../runtime/native/phase9/build_qk.sh) · [QK 回放](../runtime/native/phase9/replay_qk.py) · [QK CSV](../artifacts/logs/phase9_1_2_qk_accuracy.csv) · [设备日志](../artifacts/logs/phase9_1_2_qk_hardware.log) |
+| Softmax | native 最大值平移、FP32 指数与归约、低精度概率；9.2 FP32 最大绝对误差 1.19e-7，低精度最大 7.63e-6，表中无超差。它仍可把细微误差传播到 AV，9.4 修正 FP16 | [softmax.mlu](../runtime/native/phase9/softmax/softmax.mlu) · [设备构建](../runtime/native/phase9/softmax/build.sh) · [9.2 CSV](../artifacts/logs/phase9_2_softmax_accuracy.csv) · [9.4 设备日志](../artifacts/logs/phase9_4_softmax_hardware.log) |
+| AV | BF16/FP16 概率乘 V、FP32 累加、最后窄化。9.3 matched 输入零超差，原 FP16 串联 2 个超差，9.4 修正后的 BF16/FP16 各 144 条阶段记录零超差 | [av.mlu](../runtime/native/phase9/av/av.mlu) · [chain 回放](../runtime/native/phase9/softmax_fp16/chain_replay.py) · [9.3 CSV](../artifacts/logs/phase9_3_av_accuracy.csv) · [9.4 CSV](../artifacts/logs/phase9_4_chain_accuracy.csv) |
+| MLA | Q/KV-A/KV-B、latent RMSNorm、YaRN、原生 QK/Softmax/AV、O 投影；Phase 10 单卡 2304 个阶段比较零超差。八卡每 rank 两头，27 层，C.3 沿用 C.2 full-K output-axis O，两次 all-gather 后 BF16 cast 与残差 | [Phase 10 MLA](../runtime/native/phase10/mla.cpp) · [C.2 投影](../integration/vllm_native_mlu/phase15/stage_c2/output_projection.py) · [单卡复现](NATIVE_KV_CACHE.md) · [单卡 CSV](../artifacts/logs/phase10_mla_accuracy.csv) · [八卡 MLA CSV](../artifacts/logs/phase15/stage_c1/mla_acceptance.csv) |
+| KV Cache | Phase 10 设备 expanded K/V 的 append/read/reset/reuse，480 个阶段比较零超差；TP8 用 Vendor scheduler 的 block table/slot mapping 和每 rank 两头 cache view，每页 16 token；vLLM 固定配置禁用 prefix caching | [Phase 10 layout](../runtime/native/phase10/layout.mlu) · [TP8 Cache](../integration/vllm_native_mlu/phase15/tp8/cache.py) · [单卡 CSV](../artifacts/logs/phase10_kv_cache_accuracy.csv) · [八卡 CSV](../artifacts/logs/phase15/stage_c1/kv_cache_acceptance.csv) |
+| MoE | 26 个 MoE 层，top-6 / 64 路由专家、共享专家；每 rank 8 个路由专家。C.3 gate/up 融合、按专家批合并、稀疏 CNCL SUM、原顺序 combine；隔离实验输出及 FP32 gate/up 对齐，冻结 C.2 模型 logits 位级对齐。源码把整数 route ID 转列表进行 host 调度，实际 expert/attention/GEMM 为设备路径 | [MoE 源码](../integration/vllm_native_mlu/phase15/stage_c3/moe.py) · [原生边界](../runtime/native/phase11/moe.mlu) · [C.3 probe 源码](../integration/vllm_native_mlu/phase15/stage_c3/probe.py) · [probe 结果](../artifacts/logs/phase15/stage_c3/probe_alternatives.csv) · [rank/step logits CSV](../artifacts/logs/phase15/stage_c3/logit_parity.csv) |
+| Prefill / Decode | Phase 10 一次 prefill 后三步 decode；Phase 12.5.4 真实单卡连续调度；Stage C.1 17 token prefill、31 次增量调用产生 32 个 ID；C.3 通过冻结请求整序列对照。Chat 是逐请求重渲染有效历史，同一 engine 复用；跨轮独立提交，prefix caching 关闭 | [TP8 调用](../integration/vllm_native_mlu/phase15/tp8/inference.py) · `make deepseek-tp8 TP=8 MAX_TOKENS=32` 与 `make deepseek-c3` · [C.1 forward 日志](../artifacts/logs/phase15/stage_c1/inference.log) · [C.1 token IDs](../artifacts/logs/phase15/stage_c1/generation_outputs.json) · [C.3 完整接受日志](../artifacts/logs/phase15/stage_c3/candidate_profile/acceptance.log) |
+
+## Eight-Card Execution and Session Cross-Verification
+
+- **B2 真八卡通信 PASS。** 源码用 Vendor TP worker 的 `collective_rpc`，在各 rank 的当前 MLU 做同步和 CNCL barrier、broadcast、all-reduce。复现入口是在固定 SDK 内运行 `python3 integration/vllm_native_mlu/phase15/vendor_executor_tp8_acceptance.py`，指定 `PHASE15_STAGE_B2_OUT` 到新目录并以只读方式挂载当前 checkpoint 到 `/checkpoint`。24 条 rank/device 映射覆盖三轮各 rank 0–7，216 条 CNCL 记录全部 PASS，负载 4 KiB、64 KiB、1 MiB、16 MiB。成功日志三次 worker 正常离开，进程快照保留一个非 worker 子进程；一次旧运行过短的 worker grace 导致 SIGTERM。首次失败与修复后 PASS 同时成立。[映射](../artifacts/logs/phase15/stage_b2/rank_device_mapping.csv) · [校验和与时延](../artifacts/logs/phase15/stage_b2/cncl_acceptance.csv) · [成功日志](../artifacts/logs/phase15/stage_b2/vendor_executor.log) · [资源快照](../artifacts/logs/phase15/stage_b2/lifecycle.csv)
+- **TP8 真模型生成历史 PASS。** C.1 真实 loader 记录四个 shard 加载，源码检查 5,291 个权重名并按 rank 选择 head/专家。C.1 forward 日志、生成 ID、数值/缓存证据、八个 worker 退出和卡上内存快照相互印证。C.3 在固定 17→32 测试中，有 512 个 rank/step 对、每对 102,400 FP32 logits 与 C.2 bitwise 相同，18 个计时请求的全部 32 个 ID 与 C.1 一致。Stage D stable 默认命令另有 12-token 输入和 32-token 输出，八 worker 退出 0。上述证明真机整链，参考Scope is对应冻结输入与边界，不代表任意提示或全精度的独立端到端逐张量对齐。[C.1 证据汇总](../artifacts/logs/phase15/stage_c1/final_report.md) · [C.3 logits](../artifacts/logs/phase15/stage_c3/logit_parity.csv) · [Stage D stable tokens](../artifacts/logs/phase15/stage_d/make_runs/deepseek.18glKfkW/generation_outputs.json) · [Stage D stable 退出](../artifacts/logs/phase15/stage_d/make_runs/deepseek.18glKfkW/lifecycle.csv)
+- **TP8 多轮 Chat 历史 PASS。** `chat.kNyMvK2b` 一个 engine 完成四次请求，历史消息数 0/2/4/0，累计 32 tokens；第二轮回忆第一轮输入，reset 后清空。TTY `chat.6MZNHW0g` 完成五轮 40 tokens，其余会话验证 active Ctrl+C 和八 worker 退出。另一个带 role 边界和真实裁剪的 `chat.BXuog9ba` 一次加载、14 完成请求、133 tokens、终端九次出现旧通知，对应九行正的 `dropped_turns`，八 worker 均退出 0。该归档证明裁剪与生成实际发生，也证明该次终端尚有通知。[四轮请求](../artifacts/logs/phase16/runs/chat.kNyMvK2b/interactive_requests.csv) · [八 rank](../artifacts/logs/phase16/runs/chat.kNyMvK2b/workers.csv) · [五轮 TTY](../artifacts/logs/phase16/terminal_runs/chat.6MZNHW0g/session_summary.json) · [14 轮终端](../artifacts/logs/phase16/runs/chat.BXuog9ba/chat_smoke_test.log) · [14 轮生命周期](../artifacts/logs/phase16/runs/chat.BXuog9ba/worker_lifecycle.csv)
+
+## Phase 16.3 裁剪与当前控制台核验
+
+- [fit_history 与 Session.turn](../integration/vllm_native_mlu/phase16/deepseek_chat.py) 用同一 tokenizer 重算 prompt，保留 system 和最新 user，只删最早完整的 user/assistant 对，确保 `prompt_tokens + max_tokens <= max_model_len <= 128`。预设 32 输出 token。超长或 reject 模式抛出 overflow，成功后才提交历史；正常 stop 或识别 role header 后的非空答案可以提交，长度耗尽/取消不会提交。统计写入 `row['dropped_turns']` 和请求 CSV。当前自身裁剪分支没有旧通知调用，CPU 测试覆盖 0/1/2 次裁剪。**PASS（CPU）**。
+- 历史 16.3 主要修正 role-header streaming；移除本地提示属于 16.4。当前 16.4.1 的生产 `main.emit` 另按完整字符串过滤并写 `filtered_notifications.log`。仓库测试中的过滤测试独立重新编译同一正则，不能证明任意来源或跨 fragment 都被过滤。审计用 Python AST 从当前源码提取并直接运行真实 `emit`，以 `io.StringIO` 捕获 stdout、临时目录接收诊断。输入完整旧通知一次时不可见，输入同一句拆为两次 `emit(..., end='')` 时可见。**PASS（单次完整通知），FAIL（跨片段无条件静默）**。同时，worker、Vendor 或其他进程如果直写 stdout/stderr，不经过该 emit，来源归因仍 UNKNOWN；全终端真实复验 **BLOCKED**。正常裁剪静默与任意来源完全静默是两个门槛。[CPU 测试](../integration/vllm_native_mlu/phase16/test_chat.py) · [16.4 报告](../artifacts/logs/phase16/phase16_4/PHASE16_4_ACCEPTANCE.md) · [16.4.1 声明与范围](../artifacts/logs/phase16/phase16_4_1/PHASE16_4_1_ACCEPTANCE.md)
+
+### 生产 emitter 反例复现
+
+从仓库根目录运行。提取的是当前文件里的实际函数，临时输出不会写入验收目录。
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 - <<'PYTHON'
+import ast
+import contextlib
+import io
+import tempfile
+from pathlib import Path
+
+source = Path("integration/vllm_native_mlu/phase16/deepseek_chat.py")
+node = next(node for node in ast.walk(ast.parse(source.read_text()))
+            if isinstance(node, ast.FunctionDef) and node.name == "emit")
+message = "Context limit: removed 1 oldest complete turn(s) from this prompt."
+with tempfile.TemporaryDirectory() as tmp:
+    scope = dict(transcript=io.StringIO(),
+                 filtered_messages_log=Path(tmp) / "filtered.log")
+    exec(compile(ast.Module(body=[node], type_ignores=[]), str(source), "exec"), scope)
+    for fragments in [(message,), (message[:16], message[16:])]:
+        terminal = io.StringIO()
+        with contextlib.redirect_stdout(terminal):
+            for fragment in fragments:
+                scope["emit"](fragment, end="")
+        print(len(fragments), message in terminal.getvalue())
+PYTHON
+```
+
+本次输出 `1 False` 和 `2 True`。该反例只验证 emitter 的行为，原通知来源和真实设备是否触发同样的输出边界仍需验证。
+
+## 性能与稳定性
+
+| 范围 | 观察结果与限制 | 证据、命令 |
+|---|---|---|
+| C.1 → C.2 | 暖 TTFT 679.2→593.8 ms，平均 TPOT 198.3→159.7 ms，decode 5.044→6.264 token/s。冷 TTFT 中位数反而 22.475→34.982 s；每卡 C.2 post-request 6.040–6.290 GiB | `make deepseek-benchmark` 的冻结同 prompt 变体；[C.2 基准](../artifacts/logs/phase15/stage_c2/benchmark_summary.csv) · [显存](../artifacts/logs/phase15/stage_c2/memory_summary.csv) |
+| C.2 → C.3 | 三启六暖/变体，17→32，warm 中位 TTFT 604.5→424.3 ms、平均 TPOT 162.1→153.5 ms、p95 181.6→170.3 ms、decode 6.169→6.515、端到端 5.691→6.155 token/s。冷 TTFT 21.319→20.921 s，冷端到端 1.043→0.975 token/s。初始化 122.049→127.484 s 单列。两者每卡 6.040–6.290 GiB 为请求后快照，非峰值 | [运行入口](../integration/vllm_native_mlu/phase15/stage_c3/run.sh) · [原始请求 CSV](../artifacts/logs/phase15/stage_c3/benchmark.csv) · [汇总](../artifacts/logs/phase15/stage_c3/benchmark_summary.csv) · [采样口径](../artifacts/logs/phase15/stage_c3/final_report.md) |
+| Chat | 四轮示例初始化 147.48 s、cold TTFT 5.469 s、warm TTFT 0.562–1.762 s、warm mean TPOT 206.7–237.6 ms、warm decode 4.21–4.84 token/s。prompt 长度不同，包含终端与 prompt 准备开销 | `make deepseek-chat MAX_TOKENS=8 TEMPERATURE=0` · [逐请求 CSV](../artifacts/logs/phase16/runs/chat.kNyMvK2b/interactive_requests.csv) · [session summary](../artifacts/logs/phase16/runs/chat.kNyMvK2b/session_summary.json) |
+| 稳定性 | TP1 Phase 12.6 3609 s、1380 成功/0 失败、7696 tokens、2.1324 token/s，记录 alloc peak 655,599,616 B，不能当作 TP8 全卡显存。TP2 14.2 正常生命周期 10/10；B2 八卡通信 3 次，C.3 benchmark 每次八 worker 清理，Phase 16 正常与 SIGINT 多轮会话有证据。最终 TP8 Chat 的小时级/并发/异常矩阵尚无验收证据 | [TP1 复现入口](../integration/vllm_native_mlu/phase12_6/run_acceptance.py) · [一小时摘要](../artifacts/logs/phase12_6_reliability_1h_summary.json) · [TP2 cycles.py](../integration/vllm_native_mlu/phase14_2/cycles.py) · [C.3 收尾](../artifacts/logs/phase15/stage_c3/cnmon_after.log) · [SIGINT 生命周期](../artifacts/logs/phase16/terminal_runs/chat.GGChTUlM/worker_lifecycle.csv) |
+| Vendor 对照 | Vendor 原模型的 offline smoke 和 native CustomOp 局部测量有证据，GEMM 有同形状 CNNL 对照。C.2/C.3 是同 Vendor engine 上两个 native 变体。未找到相同 checkpoint、8 卡、dtype、请求/cold-warm、采样与显存口径对齐的 Vendor 原版整模型 A/B。无法宣布快于 Vendor 或达到未知 SLA | [Vendor 架构/探针](VLLM_MLU_BACKEND_ARCHITECTURE.md) · [Vendor 硬件日志](../artifacts/logs/vllm_mlu_hardware.log) · [GEMM 对照](GEMM_NATIVE_PERFORMANCE_REPORT.md) · [Phase 12.6 缺失计时列](../artifacts/logs/performance.csv) |
+
+## 证据适用范围
+
+- 版本锁定的短上下文 BF16 TP8 可交付为功能样机。checkpoint 配置的 163,840 位置数仅是模型配置，当前 wrapper 的上限为 128，计入预留输出。多轮会话存在裁剪，跨轮质量和长上下文能力需单独评估。
+- 对照了当前 README、Makefile、docs、集成源码、仓库报告、Git 历史和本请求。没有找到可归因的原文/定量阈值/签收约定。仓库历史技术 gate 能证明测试范围，需求主体与个人签收 **UNKNOWN**。逐项Status见 [差距报告](FINAL_ACCEPTANCE_GAP.md)。

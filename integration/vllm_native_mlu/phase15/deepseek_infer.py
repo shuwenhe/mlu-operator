@@ -24,6 +24,7 @@ from .stage_c3.model import StageC3Model
 from .stage_c3.moe import TunableDecoder
 from .tp8 import plugin as stage_c1
 from .tp8.inference import memory, write_csv
+from .tp8.context import CACHE_PAGES, MAX_CONTEXT, PREFILL_CHUNK, prepare_context
 from .tp8.model import ExpertParallelDecoder, NeurXDeepSeekV2ForCausalLMTP8
 
 
@@ -70,6 +71,38 @@ def verify_workers(rows, model_kind, decoder_kind):
             raise RuntimeError(f"Native worker identity mismatch: {row}")
 
 
+def reference_identity(worker):
+    model = worker.model_runner.model
+    if type(model) is MLUGraphWrapper:
+        model = model.runnable
+    group = get_tp_group()
+    return dict(rank=group.rank_in_group, device=torch.mlu.current_device(),
+                backend=dist.get_backend(group.device_group), architecture=qualified(type(model)))
+
+
+def arm_logit_capture(worker):
+    wrapped = worker.model_runner.model
+    model = wrapped.runnable if type(wrapped) is MLUGraphWrapper else wrapped
+    original = model.compute_logits
+    rank = get_tp_group().rank_in_group
+
+    def capture(*args, **kwargs):
+        logits = original(*args, **kwargs)
+        if logits is not None:
+            with Path(f"/results/logits_rank{rank}.bin").open("ab") as stream:
+                stream.write(logits.detach().float().cpu().contiguous().numpy().tobytes())
+        return logits
+
+    model.compute_logits = capture
+    return rank
+
+
+def worker_peak(worker):
+    return dict(rank=get_tp_group().rank_in_group,
+                peak_allocated_bytes=torch.mlu.max_memory_allocated(),
+                peak_reserved_bytes=torch.mlu.max_memory_reserved())
+
+
 def generate(engine, prompt_ids, count):
     start = perf_counter()
     engine.add_request("make-deepseek", {"prompt_token_ids": prompt_ids},
@@ -96,7 +129,7 @@ def generate(engine, prompt_ids, count):
                  p95_tpot_ms=sorted(intervals)[ceil(.95 * len(intervals)) - 1] if intervals else None,
                  decode_tokens_s=1000 / tpot if tpot else None,
                  end_to_end_tokens_s=len(tokens) / (timestamps[-1] - start))
-    return stats, tokens, text
+    return stats, tokens, text, intervals
 
 
 def main():
@@ -107,14 +140,18 @@ def main():
     parser.add_argument("--max-tokens", type=int, default=32)
     parser.add_argument("--dtype", default="bfloat16")
     parser.add_argument("--prompt", required=True)
+    parser.add_argument("--max-model-len", type=int, default=128)
+    parser.add_argument("--prompt-token-ids")
+    parser.add_argument("--stock-reference", action="store_true")
+    parser.add_argument("--capture-logits", action="store_true")
     parser.add_argument("--output-dir", default="/results")
     parser.add_argument("--experiment", default="")
     parser.add_argument("--c3-experiment", default="")
     args = parser.parse_args()
     if args.output_dir != "/results":
         raise ValueError("Mount the evidence directory at /results")
-    if args.tp != 8 or args.dtype != "bfloat16" or not 0 < args.max_tokens < 128:
-        raise ValueError("Expected BF16 TP8 with 1–127 output tokens")
+    if args.tp != 8 or args.dtype != "bfloat16" or not 0 < args.max_tokens < args.max_model_len <= MAX_CONTEXT:
+        raise ValueError("Expected BF16 TP8 and an output budget smaller than the context limit")
     variant = "stage_c1" if args.variant == "tp8" else args.variant
     experiment = args.experiment or args.c3_experiment or os.getenv("DEEPSEEK_EXPERIMENT", "")
     if not experiment:
@@ -139,52 +176,75 @@ def main():
         env_update["NEURX_C2_VARIANT"] = "candidate"
     if variant == "stage_c3":
         env_update["NEURX_C3_EXPERIMENT"] = experiment
-    os.environ.update(env_update)
+    os.environ.update(env_update, NEURX_CONTEXT_TRACE=str(int(args.capture_logits)))
     os.environ.setdefault("VLLM_WORKER_SHUTDOWN_TIMEOUT_SECONDS", "30")
-    plugin.register()
+    if not args.stock_reference:
+        if args.max_model_len > 128 and variant != "stage_c3":
+            raise ValueError("Extended context requires Stage C.3")
+        prepare_context(args.model_dir, args.max_model_len, args.output_dir)
+        plugin.register()
+    overrides = {} if args.stock_reference else {"architectures": [plugin.ARCH]}
     snapshots = memory("baseline")
     llm = LLM(model=args.model_dir, trust_remote_code=True, dtype=args.dtype, tensor_parallel_size=8,
-              distributed_executor_backend="mp", hf_overrides={"architectures": [plugin.ARCH]},
-              enforce_eager=True, max_model_len=128, block_size=16, max_num_seqs=1,
-              max_num_batched_tokens=128, num_gpu_blocks_override=16, gpu_memory_utilization=0.45,
+              distributed_executor_backend="mp", hf_overrides=overrides,
+              enforce_eager=True, max_model_len=args.max_model_len, block_size=16, max_num_seqs=1,
+              max_num_batched_tokens=PREFILL_CHUNK, num_gpu_blocks_override=CACHE_PAGES, gpu_memory_utilization=0.45,
               enable_prefix_caching=False, disable_log_stats=True, disable_custom_all_reduce=True)
     engine = llm.llm_engine
     core = engine.engine_core
     workers = [handle.proc for handle in core.engine_core.model_executor.workers]
     try:
-        rows = sorted(llm.collective_rpc(worker_identity, timeout=60), key=lambda row: row["rank"])
+        identity = reference_identity if args.stock_reference else worker_identity
+        rows = sorted(llm.collective_rpc(identity, timeout=60), key=lambda row: row["rank"])
         write_csv("workers.csv", rows)
-        verify_workers(rows, model_kind, decoder_kind)
-        (Path(args.output_dir) / "runtime_configuration.json").write_text(
-            json.dumps(
-                {
-                    "requested": {
-                        "variant": variant,
-                        "experiment": experiment,
-                        "tp": args.tp,
-                        "dtype": args.dtype,
+        if args.stock_reference:
+            if [(r["rank"], r["device"], r["backend"]) for r in rows] != [
+                (rank, rank, "cncl") for rank in range(8)
+            ] or any(not r["architecture"].endswith(".DeepseekV2ForCausalLM") for r in rows):
+                raise RuntimeError(f"Unexpected stock Vendor workers: {rows}")
+        else:
+            verify_workers(rows, model_kind, decoder_kind)
+            (Path(args.output_dir) / "runtime_configuration.json").write_text(
+                json.dumps(
+                    {
+                        "requested": {
+                            "variant": variant,
+                            "experiment": experiment,
+                            "tp": args.tp,
+                            "dtype": args.dtype,
+                            "max_model_len": args.max_model_len,
+                        },
+                        "verified": {
+                            "worker_count": len(rows),
+                            "ranks": [row["rank"] for row in rows],
+                            "devices": [row["device"] for row in rows],
+                            "backends": sorted(set(row["backend"] for row in rows)),
+                            "model_class": sorted(set(row["model_class"] for row in rows)),
+                            "decoder_class": sorted(set(row["decoder_class"] for row in rows)),
+                            "output_axis_layers": sorted(set(row["output_axis_layers"] for row in rows)),
+                            "fused": sorted(set(row["fused"] for row in rows)),
+                            "batched": sorted(set(row["batched"] for row in rows)),
+                        },
                     },
-                    "verified": {
-                        "worker_count": len(rows),
-                        "ranks": [row["rank"] for row in rows],
-                        "devices": [row["device"] for row in rows],
-                        "backends": sorted(set(row["backend"] for row in rows)),
-                        "model_class": sorted(set(row["model_class"] for row in rows)),
-                        "decoder_class": sorted(set(row["decoder_class"] for row in rows)),
-                        "output_axis_layers": sorted(set(row["output_axis_layers"] for row in rows)),
-                        "fused": sorted(set(row["fused"] for row in rows)),
-                        "batched": sorted(set(row["batched"] for row in rows)),
-                    },
-                },
-                indent=2,
+                    indent=2,
+                )
+                + "\n"
             )
-            + "\n"
-        )
         snapshots += memory("loaded")
-        prompt_ids = llm.get_tokenizer().encode(args.prompt)
-        if not prompt_ids or len(prompt_ids) + args.max_tokens > 128:
-            raise ValueError(f"Prompt has {len(prompt_ids)} tokens. Prompt and output must fit 128 tokens.")
-        stats, tokens, text = generate(engine, prompt_ids, args.max_tokens)
+        tokenizer = llm.get_tokenizer()
+        prompt_ids = (json.loads(args.prompt_token_ids) if args.prompt_token_ids is not None
+                      else tokenizer.encode(args.prompt))
+        if (not isinstance(prompt_ids, list) or not prompt_ids
+                or any(type(token) is not int or not 0 <= token < 102400 for token in prompt_ids)
+                or len(prompt_ids) + args.max_tokens > args.max_model_len):
+            raise ValueError("Invalid prompt token IDs or input plus output exceeds context limit")
+        if args.capture_logits:
+            llm.collective_rpc(arm_logit_capture, timeout=60)
+        stats, tokens, text, intervals = generate(engine, prompt_ids, args.max_tokens)
+        write_csv("worker_peak_memory.csv", llm.collective_rpc(worker_peak, timeout=60))
+        if intervals:
+            write_csv("token_intervals.csv", [dict(token=i, interval_ms=ms)
+                                             for i, ms in enumerate(intervals, 2)])
         snapshots += memory("generated")
     finally:
         core.shutdown(timeout=120)
@@ -195,7 +255,7 @@ def main():
         if len(lifecycle) != 8 or any(row["alive"] or row["exit_code"] != 0 for row in lifecycle):
             raise RuntimeError(f"TP8 shutdown failed: {lifecycle}")
     write_csv("performance.csv", [dict(variant=variant, dtype=args.dtype, tp=8, **stats)])
-    generation = dict(variant=variant, architecture=plugin.ARCH, prompt=args.prompt,
+    generation = dict(variant=variant, architecture=rows[0]["architecture"] if args.stock_reference else plugin.ARCH, prompt=args.prompt,
                       prompt_token_ids=prompt_ids, generated_text=text, generated_token_ids=tokens)
     (Path(args.output_dir) / "generation_outputs.json").write_text(json.dumps([generation], indent=2) + "\n")
 
